@@ -2472,7 +2472,7 @@ textarea {
 
 .chatbot-widget {
     position: fixed;
-    left: 1.5rem;
+    right: 1.5rem;
     bottom: 1.5rem;
     z-index: 900;
 }
@@ -2512,7 +2512,7 @@ textarea {
 
 .chatbot-panel {
     position: absolute;
-    left: 0;
+    right: 0;
     bottom: 74px;
     width: min(360px, calc(100vw - 3rem));
     height: min(520px, calc(100vh - 160px));
