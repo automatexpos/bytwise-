@@ -43,7 +43,7 @@
         launcher.setAttribute("aria-expanded", isOpen ? "true" : "false");
         if (isOpen && !hasOpenedOnce) {
             hasOpenedOnce = true;
-            addBubble("Hi! Tell me what kind of place you're looking for and I'll find a match.", "bot");
+            addBubble("Hi! Welcome to Bytewise assistant. I'll help you find a suitable place.", "bot");
             input.focus();
         }
     }
