@@ -13,8 +13,8 @@
         </div>
 
         <div class="auth-tabs">
-            <a href="/auth?mode=login" class="auth-tab {% if mode == 'login' %}auth-tab-active{% endif %}">Login</a>
-            <a href="/auth?mode=signup" class="auth-tab {% if mode == 'signup' %}auth-tab-active{% endif %}">Sign Up</a>
+            <a href="/auth?mode=login&next={{ next|urlencode }}" class="auth-tab {% if mode == 'login' %}auth-tab-active{% endif %}">Login</a>
+            <a href="/auth?mode=signup&next={{ next|urlencode }}" class="auth-tab {% if mode == 'signup' %}auth-tab-active{% endif %}">Sign Up</a>
         </div>
 
         {% if error %}
@@ -23,6 +23,7 @@
 
         <form method="post" action="/auth" class="stacked-form" id="auth-form">
             <input type="hidden" name="mode" value="{{ mode }}">
+            <input type="hidden" name="next" value="{{ next }}">
 
             {% if mode == "signup" %}
             <div class="form-field">

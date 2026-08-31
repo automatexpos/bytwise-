@@ -43,9 +43,9 @@
                 <h2>Location</h2>
                 <div class="form-field">
                     <label>Google Maps location URL</label>
-                    <input type="url" name="address" required value="{{ shop.location.address }}">
-                    <input type="hidden" name="lat" value="{{ shop.location.lat }}">
-                    <input type="hidden" name="lng" value="{{ shop.location.lng }}">
+                    <input type="url" name="address" required value="{{ shop.location.address }}" onchange="updateLatLngFromMapsUrl(this)">
+                    <input type="hidden" name="lat" id="lat-input" value="{{ shop.location.lat }}">
+                    <input type="hidden" name="lng" id="lng-input" value="{{ shop.location.lng }}">
                 </div>
                 <div class="location-picker">
                     <p class="text-muted">Open Google Maps, find the spot, then copy its URL here.</p>

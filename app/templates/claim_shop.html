@@ -7,7 +7,7 @@
     <div class="card centered-card">
         <h2>Please Login First</h2>
         <p class="text-muted">You need an account to claim a business.</p>
-        <a href="/auth" class="btn btn-primary">Go to Login</a>
+        <a href="/auth?next={{ request.url.path|urlencode }}" class="btn btn-primary">Go to Login</a>
     </div>
 </div>
 {% else %}

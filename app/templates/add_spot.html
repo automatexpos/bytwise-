@@ -45,7 +45,7 @@
                 <div class="form-field">
                     <label>Google Maps location URL</label>
                     <input type="url" name="address" required placeholder="Paste the Google Maps URL here"
-                           value="{{ form_data.get('address', '') }}">
+                           value="{{ form_data.get('address', '') }}" onchange="updateLatLngFromMapsUrl(this)">
                     <input type="hidden" name="lat" id="lat-input" value="0">
                     <input type="hidden" name="lng" id="lng-input" value="0">
                 </div>

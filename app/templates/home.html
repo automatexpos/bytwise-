@@ -80,6 +80,12 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         initShopsMap('map', {{ shops|tojson }});
+
+        document.querySelectorAll('.home-search-form input[name="vibe"]').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                checkbox.form.submit();
+            });
+        });
     });
 </script>
 {% endblock %}

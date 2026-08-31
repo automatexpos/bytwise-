@@ -495,6 +495,36 @@ async def add_spot_generate_description(
 # ==================== EDIT SHOP ====================
 
 
+@router.post("/edit-shop/{shop_id}/generate-description")
+async def edit_shop_generate_description(
+    shop_id: str,
+    request: Request,
+    user: User = Depends(require_user),
+) -> dict[str, str]:
+    """AJAX endpoint backing EditShop.tsx's 'Regenerate with AI' button."""
+    form = await request.form()
+    name = str(form.get("name") or "")
+    city = str(form.get("city") or "")
+    area = str(form.get("area") or "") or None
+    vibes = form.getlist("vibes")
+    cheeky_vibes = form.getlist("cheeky_vibes")
+    parking = str(form.get("parking") or "Unknown")
+    facilities = {key: (form.get(key) == "on") for key, _ in FACILITY_FIELDS}
+    open_hours = {day: str(form.get(f"hours_{day}") or "") for day in DAYS_OF_WEEK}
+
+    description = gemini_service.generate_shop_description(
+        name=name,
+        vibes=list(vibes),
+        city=city,
+        area=area,
+        cheeky_vibes=list(cheeky_vibes),
+        parking=parking,
+        facilities=facilities,
+        open_hours=open_hours,
+    )
+    return {"description": description}
+
+
 @router.get("/edit-shop/{shop_id}", response_class=HTMLResponse)
 def edit_shop_form(
     shop_id: str,
@@ -701,21 +731,30 @@ async def edit_shop_submit(
 # ==================== AUTH ====================
 
 
+def _safe_next_path(next_path: Optional[str]) -> str:
+    """Only allow same-site relative redirects, never an absolute/external URL."""
+    if next_path and next_path.startswith("/") and not next_path.startswith("//"):
+        return next_path
+    return "/"
+
+
 @router.get("/auth", response_class=HTMLResponse)
 def auth_form(
     request: Request,
     mode: str = "login",
+    next: str = "/",
     user: Optional[User] = Depends(get_current_user),
 ) -> HTMLResponse:
     """GET /auth : login and signup tabs, matches Auth.tsx."""
+    safe_next = _safe_next_path(next)
     if user:
-        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
 
     mode = mode if mode in ("login", "signup") else "login"
     return templates.TemplateResponse(
         request,
         "auth.html",
-        {"user": None, "mode": mode, "error": None},
+        {"user": None, "mode": mode, "error": None, "next": safe_next},
     )
 
 
@@ -727,12 +766,13 @@ async def auth_submit(request: Request) -> HTMLResponse:
     email = str(form.get("email") or "").strip()
     password = str(form.get("password") or "")
     username = str(form.get("username") or "").strip()
+    safe_next = _safe_next_path(str(form.get("next") or "/"))
 
     def render_error(message: str) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
             "auth.html",
-            {"user": None, "mode": mode, "error": message},
+            {"user": None, "mode": mode, "error": message, "next": safe_next},
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -750,13 +790,15 @@ async def auth_submit(request: Request) -> HTMLResponse:
         if result.user_id:
             profile_client = get_request_supabase_client(request)
             db_service.create_user_profile(profile_client, result.user_id, username, email)
-        return RedirectResponse(url="/auth?mode=login", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url=f"/auth?mode=login&next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
 
     result = log_in(email, password)
     if not result.success or not result.access_token:
         return render_error(result.error or "Invalid email or password")
 
-    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=result.access_token,

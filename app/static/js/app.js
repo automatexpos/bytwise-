@@ -451,6 +451,34 @@ function approveClaim(requestId, button) {
         .catch(function (error) { toast.error(error.message || "Could not approve claim request."); });
 }
 
+/* ==================== GOOGLE MAPS URL -> LAT/LNG ==================== */
+
+function updateLatLngFromMapsUrl(input) {
+    var url = input.value.trim();
+    if (!url) return;
+
+    var patterns = [
+        /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+        /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+        /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+        /[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/,
+    ];
+
+    for (var i = 0; i < patterns.length; i++) {
+        var match = url.match(patterns[i]);
+        if (match) {
+            var latInput = document.getElementById("lat-input");
+            var lngInput = document.getElementById("lng-input");
+            if (latInput) latInput.value = match[1];
+            if (lngInput) lngInput.value = match[2];
+            toast.success("Pinpointed location from the map link.");
+            return;
+        }
+    }
+
+    toast.error("Could not read coordinates from that link. Try copying the URL after opening the pin in Google Maps.");
+}
+
 /* ==================== ADD SPOT FORM ==================== */
 
 function setupAddSpotForm() {

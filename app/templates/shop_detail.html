@@ -238,7 +238,7 @@
                         <span>{{ "Visited" if is_visited else "Stamp My Passport" }}</span>
                     </button>
                     {% else %}
-                    <a href="/auth" class="btn btn-outline btn-block"><i class="far fa-heart"></i> Save Spot</a>
+                    <a href="/auth?next={{ request.url.path|urlencode }}" class="btn btn-outline btn-block"><i class="far fa-heart"></i> Save Spot</a>
                     {% endif %}
 
                     <a href="{% if shop.location.address.startswith('http') %}{{ shop.location.address }}{% else %}https://www.google.com/maps/search/?api=1&query={{ (shop.name ~ ', ' ~ shop.location.address ~ ', ' ~ shop.location.city)|urlencode }}{% endif %}"
@@ -256,7 +256,7 @@
                     {% if user %}
                     <a href="/claim/{{ shop.id }}" class="btn btn-secondary btn-block">Claim My Shop</a>
                     {% else %}
-                    <a href="/auth" class="btn btn-secondary btn-block">Claim My Shop</a>
+                    <a href="/auth?next={{ request.url.path|urlencode }}" class="btn btn-secondary btn-block">Claim My Shop</a>
                     {% endif %}
                     {% endif %}
                 </div>

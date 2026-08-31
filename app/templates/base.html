@@ -22,7 +22,7 @@
             </a>
             <div class="navbar-actions">
                 {% if user %}
-                    {% if user.is_admin or user.is_business_owner %}
+                    {% if user.is_admin %}
                         <a href="/admin" class="navbar-link">Admin</a>
                     {% endif %}
                     <a href="/add" class="btn btn-outline btn-sm">
@@ -32,7 +32,7 @@
                         <img src="{{ user.avatar_url }}" alt="{{ user.username }}">
                     </a>
                 {% else %}
-                    <a href="/auth" class="btn btn-primary btn-sm">Login</a>
+                    <a href="/auth?next={{ request.url.path|urlencode }}" class="btn btn-primary btn-sm">Login</a>
                 {% endif %}
             </div>
         </div>
