@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ shop.name }}, Bytwise{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="form-card form-card-accent">
+        <div class="form-header form-header-row">
+            <div>
+                <h1>Edit Shop Details</h1>
+                <p class="text-muted">Update the lowdown for <strong>{{ shop.name }}</strong>.</p>
+            </div>
+            <a href="/shop/{{ shop.id }}" class="btn btn-outline">Cancel</a>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-warning">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/edit-shop/{{ shop.id }}" enctype="multipart/form-data" class="stacked-form">
+            <section class="form-section">
+                <h2>The Basics</h2>
+                <div class="form-grid form-grid-2">
+                    <div class="form-field">
+                        <label>Shop Name</label>
+                        <input type="text" name="name" required value="{{ shop.name }}">
+                    </div>
+                    <div class="form-field">
+                        <label>City</label>
+                        <input type="text" name="city" required value="{{ shop.location.city }}">
+                    </div>
+                    <div class="form-field">
+                        <label>State / Region</label>
+                        <input type="text" name="state" required value="{{ shop.location.state }}">
+                    </div>
+                    <div class="form-field">
+                        <label>Area / Neighborhood</label>
+                        <input type="text" name="area" value="{{ shop.location.area or '' }}">
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Location</h2>
+                <div class="form-field">
+                    <label>Google Maps location URL</label>
+                    <input type="url" name="address" required value="{{ shop.location.address }}">
+                    <input type="hidden" name="lat" value="{{ shop.location.lat }}">
+                    <input type="hidden" name="lng" value="{{ shop.location.lng }}">
+                </div>
+                <div class="location-picker">
+                    <p class="text-muted">Open Google Maps, find the spot, then copy its URL here.</p>
+                    <a href="https://www.google.com/maps" target="_blank" rel="noreferrer" class="btn btn-location btn-xs">
+                        <i class="fas fa-location-dot"></i> Location
+                    </a>
+                </div>
+            </section>
+
+            {% if not is_claimed_owner %}
+            <section class="form-section">
+                <h2>The Vibe</h2>
+                <div class="form-field">
+                    <label>Standard Vibes</label>
+                    {% for category, vibes in standard_vibes.items() %}
+                    <h3 class="form-subheading">
+                        {{ "Food & Drink" if category == "foodDrink" else ("Purpose / Who It's For" if category == "purpose" else category|capitalize) }}
+                    </h3>
+                    {% set field_name = "vibes" %}
+                    {% set options = vibes %}
+                    {% set selected = shop.vibes %}
+                    {% include "components/tag_chip_list.html" with context %}
+                    {% endfor %}
+                </div>
+
+                <div class="form-field">
+                    <label>Cheeky Vibes <span class="text-muted">(Optional personality traits)</span></label>
+                    {% for category, vibes in cheeky_vibes_options.items() %}
+                    <h3 class="form-subheading">
+                        {{ "Work & Study" if category == "workStudy" else ("Pakistani Energy" if category == "pakistaniEnergy" else category|capitalize) }}
+                    </h3>
+                    {% set field_name = "cheeky_vibes" %}
+                    {% set options = vibes %}
+                    {% set selected = shop.cheekyVibes %}
+                    {% include "components/tag_chip_list.html" with context %}
+                    {% endfor %}
+                </div>
+
+                <div class="form-field">
+                    <div class="form-field-header">
+                        <label>The Lowdown (Description)</label>
+                        <button type="button" class="link-accent-btn" id="generate-ai-btn" onclick="generateAiDescription()">
+                            <i class="fas fa-magic"></i> Regenerate with AI
+                        </button>
+                    </div>
+                    <textarea name="description" id="description-input" required rows="4">{{ shop.description }}</textarea>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if is_claimed_owner %}
+            <section class="form-section">
+                <h2>Business Details</h2>
+                <div class="form-field">
+                    <label>Parking Availability</label>
+                    <select name="parking">
+                        {% for option in parking_options %}
+                        <option value="{{ option }}" {% if shop.parking == option %}selected{% endif %}>{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Facilities</label>
+                    <div class="checkbox-row">
+                        {% for key, label in facility_fields %}
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="{{ key }}" {% if shop.facilities and shop.facilities.get(key) %}checked{% endif %}>
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <div class="custom-facility-row">
+                        <input type="text" id="custom-facility-input" placeholder="Add a facility">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="addCustomFacility()">Add</button>
+                    </div>
+                    <div class="tag-row" id="custom-facility-list">
+                        {% for facility in (shop.facilities.customFacilities if shop.facilities else []) or [] %}
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="custom_facilities" value="{{ facility }}" checked>
+                            {{ facility }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if not is_claimed_owner %}
+            <section class="form-section">
+                <h2>Opening Hours</h2>
+                <p class="text-muted small">Leave blank for days you are closed. Example: "8:00 AM - 5:00 PM" or "Closed"</p>
+                <div class="form-grid form-grid-2">
+                    {% for day in days_of_week %}
+                    <div class="form-field">
+                        <label class="capitalize">{{ day }}</label>
+                        <input type="text" name="hours_{{ day }}" placeholder="e.g. 8:00 AM - 5:00 PM"
+                               value="{{ shop.openHours.get(day, '') if shop.openHours else '' }}">
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Photos</h2>
+                <div class="photo-grid">
+                    {% for image in shop.gallery %}
+                    <div class="photo-grid-item">
+                        <img src="{{ image.url }}" alt="Shop photo">
+                        <label class="photo-keep-toggle">
+                            <input type="checkbox" name="kept_images" value="{{ image.url }}" checked>
+                            Keep
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="upload-tile" onclick="document.getElementById('edit-images-input').click()">
+                    <i class="fas fa-camera"></i>
+                    <span>Add Photos</span>
+                </button>
+                <input type="file" id="edit-images-input" name="images" class="hidden" multiple accept="image/*">
+            </section>
+            {% endif %}
+
+            <div class="form-submit-row">
+                <button type="submit" class="btn btn-primary btn-lg btn-block">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

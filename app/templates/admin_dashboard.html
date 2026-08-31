@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard, Bytwise{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>Admin Dashboard</h1>
+        <span class="pill-city">Admin Mode</span>
+    </div>
+
+    {% if user.is_admin %}
+    <div class="card admin-section">
+        <div class="admin-section-header">
+            <h2>Pending Photos ({{ pending_images|length }})</h2>
+        </div>
+        {% if pending_images|length == 0 %}
+        <div class="empty-state">No photos awaiting approval.</div>
+        {% else %}
+        <div class="admin-list">
+            {% for image in pending_images %}
+            <div class="admin-list-row" id="pending-image-{{ image.id }}">
+                <img src="{{ image.url }}" alt="Pending submission" class="admin-thumb">
+                <div class="admin-list-info">
+                    <p class="admin-list-title">{{ image.shop_name }}</p>
+                    <p class="text-muted small">Community photo awaiting review</p>
+                </div>
+                <div class="admin-list-actions">
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            onclick="approveImage('{{ image.id }}', this)">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm"
+                            onclick="adminDeleteImage('{{ image.id }}', '{{ image.cloudinary_public_id or '' }}', this)">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card admin-section">
+        <div class="admin-section-header">
+            <h2>Pending Claims ({{ pending_requests|length }})</h2>
+        </div>
+        {% if pending_requests|length == 0 %}
+        <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>No pending verification requests.</p>
+        </div>
+        {% else %}
+        <div class="admin-list">
+            {% for request in pending_requests %}
+            <div class="admin-claim-row" id="claim-request-{{ request.id }}">
+                <div class="admin-claim-info">
+                    <div class="admin-claim-title-row">
+                        <h3>{{ request.shop_name }}</h3>
+                        <span class="mini-tag">{{ request.role }}</span>
+                    </div>
+                    <div class="form-grid form-grid-2">
+                        <div class="admin-claim-detail">
+                            <i class="fas fa-envelope"></i>
+                            <div>
+                                <p class="detail-label">Contact Email</p>
+                                <p>{{ request.business_email }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ request.social_link }}" target="_blank" rel="noopener noreferrer" class="admin-claim-detail">
+                            <i class="fas fa-external-link-alt"></i>
+                            <div>
+                                <p class="detail-label">Verification Source</p>
+                                <p class="link-text">{{ request.social_link }}</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div class="admin-list-actions">
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            onclick="approveClaim('{{ request.id }}', this)">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" disabled title="Rejection is not implemented yet">
+                        <i class="fas fa-times"></i> Reject
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="card admin-section admin-history">
+        <div class="admin-section-header admin-section-header-light">
+            <h2>Approved History</h2>
+        </div>
+        <div class="admin-list">
+            {% for request in approved_requests %}
+            <div class="admin-list-row admin-history-row">
+                <div>
+                    <strong>{{ request.shop_name }}</strong>
+                    <span class="text-muted"> via </span>
+                    <a href="{{ request.social_link }}" target="_blank" rel="noreferrer" class="link-text">Social Link</a>
+                </div>
+                <span class="status-verified"><i class="fas fa-check-circle"></i> Verified</span>
+            </div>
+            {% else %}
+            <div class="text-muted admin-list-row">No history yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

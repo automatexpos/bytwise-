@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Claim {{ shop.name }}, Bytwise{% endblock %}
+
+{% block content %}
+{% if not user %}
+<div class="centered-page">
+    <div class="card centered-card">
+        <h2>Please Login First</h2>
+        <p class="text-muted">You need an account to claim a business.</p>
+        <a href="/auth" class="btn btn-primary">Go to Login</a>
+    </div>
+</div>
+{% else %}
+<div class="form-page">
+    <div class="form-card">
+        <div class="claim-header">
+            <h1>Claim {{ shop.name }}</h1>
+            <p>Verify ownership to manage this listing.</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-warning">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/claim/{{ shop.id }}" class="stacked-form">
+            <div class="form-grid form-grid-2">
+                <div class="form-field">
+                    <label>Business Email</label>
+                    <input type="email" name="business_email" required placeholder="owner@coffee.com">
+                </div>
+                <div class="form-field">
+                    <label>Your Role</label>
+                    <select name="role">
+                        <option>Owner</option>
+                        <option>Manager</option>
+                        <option>Employee</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-field">
+                <label>Official Social Media Link</label>
+                <input type="url" name="social_link" required placeholder="https://instagram.com/yourshop">
+                <p class="text-muted small">
+                    We use this to verify your connection to the shop. Make sure the account is public
+                    or lists your business email.
+                </p>
+            </div>
+
+            <div class="alert alert-info">
+                <p class="alert-info-title">Admin Verification Process</p>
+                <p>An admin will review your link. Once verified (usually within 24 hours), you will
+                   get the certified badge and editing rights.</p>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg">Submit for Review</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

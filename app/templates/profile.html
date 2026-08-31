@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}@{{ viewed_user.username }}, Bytwise{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+    <div class="card profile-header-card">
+        <div class="profile-avatar-wrap">
+            <img src="{{ viewed_user.avatarUrl }}" alt="{{ viewed_user.username }}" class="profile-avatar" id="profile-avatar-preview">
+            {% if is_own_profile %}
+            <button type="button" class="profile-avatar-edit-btn hidden" id="avatar-edit-btn"
+                    onclick="document.getElementById('avatar-file-input').click()">
+                <i class="fas fa-camera"></i>
+            </button>
+            {% endif %}
+        </div>
+
+        <div class="profile-info">
+            {% if is_own_profile %}
+            <form method="post" action="/profile/edit" enctype="multipart/form-data" id="profile-edit-form" class="profile-edit-form hidden">
+                <div class="form-field">
+                    <label>Username</label>
+                    <input type="text" name="username" value="{{ viewed_user.username }}">
+                </div>
+                <div class="form-field">
+                    <label>Bio</label>
+                    <textarea name="bio" rows="3" placeholder="Tell us about your coffee journey...">{{ viewed_user.bio or '' }}</textarea>
+                </div>
+                <div class="form-field">
+                    <label>Social Connections</label>
+                    <div class="form-grid-stack">
+                        <input type="text" name="instagram" placeholder="Instagram URL"
+                               value="{{ viewed_user.socialLinks.instagram if viewed_user.socialLinks else '' }}">
+                        <input type="text" name="x" placeholder="X (Twitter) URL"
+                               value="{{ viewed_user.socialLinks.x if viewed_user.socialLinks else '' }}">
+                    </div>
+                </div>
+                <input type="file" id="avatar-file-input" name="avatar" accept="image/*" class="hidden"
+                       onchange="previewAvatarUpload(this)">
+                <div class="form-submit-row-inline">
+                    <button type="submit" class="btn btn-primary btn-sm">Save Profile</button>
+                    <button type="button" class="btn-text-muted" onclick="cancelProfileEdit()">Cancel</button>
+                </div>
+            </form>
+            {% endif %}
+
+            <div id="profile-view-block" class="{% if is_own_profile %}hidden{% endif %}">
+                <div class="profile-name-row">
+                    <h1>@{{ viewed_user.username }}</h1>
+                    {% if is_own_profile %}
+                    <span class="pill-city">{{ viewed_user.email }}</span>
+                    {% endif %}
+                    <div class="drip-score-pill"><i class="fas fa-bolt"></i> {{ drip_score }} DripScore</div>
+                </div>
+
+                {% if viewed_user.bio %}
+                <p class="profile-bio">"{{ viewed_user.bio }}"</p>
+                {% else %}
+                <p class="text-muted">No bio yet.</p>
+                {% endif %}
+
+                {% set social = viewed_user.socialLinks %}
+                {% if social and (social.instagram or social.x) %}
+                <div class="social-icon-row">
+                    {% if social.instagram %}
+                    <a href="{{ social.instagram if social.instagram.startswith('http') else 'https://' ~ social.instagram }}"
+                       target="_blank" rel="noopener noreferrer" class="social-icon" title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    {% endif %}
+                    {% if social.x %}
+                    <a href="{{ social.x if social.x.startswith('http') else 'https://' ~ social.x }}"
+                       target="_blank" rel="noopener noreferrer" class="social-icon" title="X">
+                        <i class="fab fa-x-twitter"></i>
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <div class="profile-stats-row">
+                    <div class="profile-stat"><span>{{ saved_spots|length }}</span><small>Saved</small></div>
+                    <div class="profile-stat"><span>{{ visited_spots|length }}</span><small>Visited</small></div>
+                    <div class="profile-stat"><span>{{ claimed_spots|length }}</span><small>Owned</small></div>
+                    <div class="profile-stat"><span>{{ viewed_user.followerIds|length if viewed_user.followerIds else 0 }}</span><small>Followers</small></div>
+                </div>
+
+                <div class="profile-actions-row">
+                    {% if is_own_profile %}
+                    <button type="button" class="btn btn-outline btn-sm" onclick="startProfileEdit()">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </button>
+                    <button type="button" class="btn-text-accent" onclick="shareProfile('{{ viewed_user.username }}')">
+                        <i class="fas fa-share"></i> Share Profile
+                    </button>
+                    <form method="post" action="/logout" class="inline-form">
+                        <button type="submit" class="btn-text-danger">Log Out</button>
+                    </form>
+                    {% else %}
+                    <button type="button" class="btn {{ 'btn-secondary' if is_following else 'btn-primary' }} btn-sm"
+                            id="follow-btn" onclick="toggleFollow('{{ viewed_user.id }}', this)">
+                        <i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i>
+                        <span>{{ "Following" if is_following else "Follow" }}</span>
+                    </button>
+                    <button type="button" class="btn-text-accent" onclick="shareProfile('{{ viewed_user.username }}')">
+                        <i class="fas fa-share"></i> Share Profile
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-connections-grid">
+        <section class="card">
+            <div class="section-header-row">
+                <h2><i class="fas fa-user-plus"></i> Following</h2>
+                <span class="text-muted">{{ following_profiles|length }}</span>
+            </div>
+            {% if following_profiles|length > 0 %}
+            <div class="connection-list">
+                {% for profile in following_profiles %}
+                <a href="/profile/{{ profile.id }}" class="connection-item">
+                    <img src="{{ profile.avatarUrl }}" alt="{{ profile.username }}">
+                    <span>@{{ profile.username }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">No following yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <div class="section-header-row">
+                <h2><i class="fas fa-users"></i> Followers</h2>
+                <span class="text-muted">{{ follower_profiles|length }}</span>
+            </div>
+            {% if follower_profiles|length > 0 %}
+            <div class="connection-list">
+                {% for profile in follower_profiles %}
+                <a href="/profile/{{ profile.id }}" class="connection-item">
+                    <img src="{{ profile.avatarUrl }}" alt="{{ profile.username }}">
+                    <span>@{{ profile.username }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">No followers yet.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="profile-section">
+        <div class="section-title-row">
+            <h2>Achievements</h2>
+            <span class="mini-tag">Beta</span>
+        </div>
+        <div class="card badge-grid">
+            {% for badge in badges %}
+            <div class="badge-tile {{ 'badge-unlocked' if badge.unlocked else 'badge-locked' }}">
+                <div class="badge-icon"><i class="fas fa-{{ badge.icon }}"></i></div>
+                <h3>{{ badge.name }}</h3>
+                <p>{{ badge.desc }}</p>
+                {% if badge.unlocked %}
+                <span class="badge-unlocked-tag">UNLOCKED</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="profile-section">
+        <h2><i class="fas fa-passport"></i> {{ "Your" if is_own_profile else (viewed_user.username ~ "'s") }} Passport Book</h2>
+        {% if passport_book|length > 0 %}
+        <div class="passport-book">
+            {% for location, location_shops in passport_book.items() %}
+            <div class="passport-city-group">
+                <h3><i class="fas fa-map-pin"></i> {{ location }}</h3>
+                <div class="passport-stamp-grid">
+                    {% for shop in location_shops %}
+                    <a href="/shop/{{ shop.id }}" class="passport-stamp {{ 'passport-stamp-gold' if shop.isClaimed else '' }}">
+                        <div class="passport-stamp-name">{{ shop.name }}</div>
+                        {% if shop.isClaimed %}<i class="fas fa-star passport-stamp-star"></i>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state empty-state-large">
+            <i class="fas fa-passport"></i>
+            <h3>{{ "Your" if is_own_profile else "This" }} passport is empty</h3>
+            <p>Check into shops to earn stamps, track your travels, and unlock badges.</p>
+            <a href="/" class="btn btn-primary">Start Exploring</a>
+        </div>
+        {% endif %}
+    </section>
+
+    {% if claimed_spots|length > 0 %}
+    <section class="profile-section">
+        <h2><i class="fas fa-briefcase"></i> {{ "Your" if is_own_profile else (viewed_user.username ~ "'s") }} Managed Shops</h2>
+        <div class="card-grid">
+            {% for shop in claimed_spots %}
+            <a href="/shop/{{ shop.id }}" class="managed-shop-card">
+                <div class="managed-shop-header">
+                    <h3>{{ shop.name }}</h3>
+                    <span class="badge badge-dark"><i class="fas fa-check-circle"></i></span>
+                </div>
+                <div class="managed-shop-meta">
+                    <p class="text-muted">{{ shop.location.city }}</p>
+                    <span class="btn btn-location btn-xs">
+                        <i class="fas fa-location-dot"></i> Location
+                    </span>
+                </div>
+                <div class="managed-shop-footer">
+                    <span>Manage Page</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="profile-section profile-section-last">
+        <h2><i class="fas fa-heart"></i> {{ "Your" if is_own_profile else (viewed_user.username ~ "'s") }} Saved Spots</h2>
+        <div class="card-grid">
+            {% for shop in saved_spots %}
+            <a href="/shop/{{ shop.id }}" class="saved-shop-card">
+                <h3>{{ shop.name }}</h3>
+                <p class="text-muted">{{ shop.location.city }}</p>
+                <div class="tag-row">
+                    {% for v in shop.vibes[:2] %}
+                    <span class="mini-tag">{{ v }}</span>
+                    {% endfor %}
+                </div>
+            </a>
+            {% else %}
+            <div class="empty-state empty-state-dashed">
+                <p class="empty-italic">No saved spots yet.</p>
+                <a href="/" class="btn-text-muted">Explore Map</a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

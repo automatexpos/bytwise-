@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sign Up" if mode == "signup" else "Login" }}, Bytwise{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo"><i class="fas fa-droplet"></i></div>
+            <h1>Bytwise</h1>
+            <p class="text-muted">
+                {% if mode == "signup" %}Join the community of coffee explorers{% else %}Welcome back!{% endif %}
+            </p>
+        </div>
+
+        <div class="auth-tabs">
+            <a href="/auth?mode=login" class="auth-tab {% if mode == 'login' %}auth-tab-active{% endif %}">Login</a>
+            <a href="/auth?mode=signup" class="auth-tab {% if mode == 'signup' %}auth-tab-active{% endif %}">Sign Up</a>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/auth" class="stacked-form" id="auth-form">
+            <input type="hidden" name="mode" value="{{ mode }}">
+
+            {% if mode == "signup" %}
+            <div class="form-field">
+                <label>Username</label>
+                <input type="text" name="username" required placeholder="coffeeexplorer">
+            </div>
+            {% endif %}
+
+            <div class="form-field">
+                <label>Email Address</label>
+                <input type="email" name="email" required placeholder="barista@example.com">
+            </div>
+
+            <div class="form-field">
+                <label>Password</label>
+                <input type="password" name="password" required minlength="6" placeholder="********">
+                {% if mode == "signup" %}
+                <p class="text-muted small">Minimum 6 characters</p>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg">
+                {% if mode == "signup" %}Create Account{% else %}Sign In{% endif %}
+            </button>
+        </form>
+
+        <p class="auth-footnote">By continuing, you agree to our Terms of Service.</p>
+    </div>
+</div>
+{% endblock %}

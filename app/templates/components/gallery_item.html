@@ -1,0 +1,12 @@
+{# Reusable gallery grid image tile, mirrors the masonry gallery item in ShopDetail.tsx.
+   Expected context: `image` (dict with url, type, id), `index` (int), `is_admin` (bool). #}
+<div class="gallery-item" data-index="{{ index }}" onclick="openLightbox({{ index }})">
+    <img src="{{ image.url }}" alt="Gallery image {{ index + 1 }}" loading="lazy">
+    <span class="gallery-item-type">{{ image.type }}</span>
+    {% if is_admin and image.id %}
+    <button type="button" class="gallery-item-delete" title="Delete picture as admin"
+            onclick="event.stopPropagation(); adminDeleteImage('{{ image.id }}', '{{ image.publicId|default('') }}', this)">
+        <i class="fas fa-trash"></i> Delete
+    </button>
+    {% endif %}
+</div>

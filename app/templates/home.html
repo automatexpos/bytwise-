@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Bytwise, find your next favorite spot{% endblock %}
+
+{% block content %}
+<div class="home-layout">
+    <div class="home-sidebar" id="home-sidebar">
+        <form class="home-search-form" method="get" action="/">
+            <div class="search-input-wrap">
+                <i class="fas fa-search"></i>
+                <input type="text" name="q" placeholder="Search city (e.g. London), shop, or matcha..."
+                       value="{{ search_query }}">
+            </div>
+            {% set field_name = "vibe" %}
+            {% set options = standard_vibe_options %}
+            {% set selected = selected_vibes %}
+            {% include "components/tag_chip_list.html" with context %}
+            <noscript><button type="submit" class="btn btn-primary btn-sm">Filter</button></noscript>
+        </form>
+
+        <div class="home-shop-list">
+            {% if shops|length == 0 %}
+            <div class="empty-state">
+                <i class="fas fa-globe-americas"></i>
+                <p>No spots found in this area.</p>
+                <a href="/" class="link-accent">Clear Search</a>
+            </div>
+            {% else %}
+            {% for shop in shops %}
+            <a href="/shop/{{ shop.id }}" class="shop-card">
+                <div class="shop-card-image-wrap">
+                    <img src="{{ shop.gallery[0].url if shop.gallery else '' }}" alt="{{ shop.name }}">
+                    {% if shop.isClaimed %}
+                    <span class="badge badge-claimed"><i class="fas fa-check-circle"></i> CLAIMED</span>
+                    {% endif %}
+                    <span class="badge badge-rating"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.rating) }}</span>
+                </div>
+                <div class="shop-card-body">
+                    <div class="shop-card-header">
+                        <h3>{{ shop.name }}</h3>
+                        <span class="pill-city">{{ shop.location.city }}</span>
+                    </div>
+                    <a class="btn btn-location btn-xs"
+                       href="{% if shop.location.address.startswith('http') %}{{ shop.location.address }}{% else %}https://www.google.com/maps/search/?api=1&query={{ (shop.name ~ ', ' ~ shop.location.address ~ ', ' ~ shop.location.city)|urlencode }}{% endif %}"
+                       target="_blank" rel="noreferrer" onclick="event.stopPropagation()">
+                        <i class="fas fa-location-dot"></i> Location
+                    </a>
+                    <div class="tag-row">
+                        {% for v in shop.vibes[:3] %}
+                        <span class="mini-tag">{{ v }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="home-map-section" id="home-map-section">
+        <div class="home-map-search-mobile">
+            <form method="get" action="/">
+                <i class="fas fa-search"></i>
+                <input type="text" name="q" placeholder="Search map..." value="{{ search_query }}">
+            </form>
+        </div>
+        <div id="map" class="map-container" data-onclick-base="/shop/"></div>
+        <button id="locate-me-btn" class="map-locate-btn" title="Find my location">
+            <i class="fas fa-location-arrow"></i>
+        </button>
+    </div>
+</div>
+
+<div class="mobile-view-toggle">
+    <button type="button" class="view-toggle-btn active" data-view="list" onclick="setHomeView('list')">List</button>
+    <button type="button" class="view-toggle-btn" data-view="map" onclick="setHomeView('map')">Map</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        initShopsMap('map', {{ shops|tojson }});
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Add a New Spot, Bytwise{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="form-card">
+        <div class="form-header">
+            <h1>Add a New Spot</h1>
+            <p class="text-muted">Share a hidden gem with the Bytwise community.</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-warning">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/add" enctype="multipart/form-data" class="stacked-form" id="add-spot-form">
+            <section class="form-section">
+                <h2>The Basics</h2>
+                <div class="form-grid form-grid-3">
+                    <div class="form-field">
+                        <label>Shop Name</label>
+                        <input type="text" name="name" required placeholder="e.g. The Daily Grind"
+                               value="{{ form_data.get('name', '') }}">
+                    </div>
+                    <div class="form-field">
+                        <label>City</label>
+                        <input type="text" name="city" required placeholder="e.g. Sacramento"
+                               value="{{ form_data.get('city', '') }}">
+                    </div>
+                    <div class="form-field">
+                        <label>State / Region</label>
+                        <input type="text" name="state" required placeholder="e.g. California"
+                               value="{{ form_data.get('state', '') }}">
+                    </div>
+                    <div class="form-field">
+                        <label>Area / Neighborhood</label>
+                        <input type="text" name="area" placeholder="e.g. DHA Phase 6"
+                               value="{{ form_data.get('area', '') }}">
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Location</h2>
+                <div class="form-field">
+                    <label>Google Maps location URL</label>
+                    <input type="url" name="address" required placeholder="Paste the Google Maps URL here"
+                           value="{{ form_data.get('address', '') }}">
+                    <input type="hidden" name="lat" id="lat-input" value="0">
+                    <input type="hidden" name="lng" id="lng-input" value="0">
+                </div>
+                <div class="location-picker">
+                    <p class="text-muted">Open Google Maps, find the spot, then copy its URL here.</p>
+                    <a href="https://www.google.com/maps" target="_blank" rel="noreferrer" class="btn btn-location btn-xs">
+                        <i class="fas fa-location-dot"></i> Location
+                    </a>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>The Vibe</h2>
+
+                <div class="form-field">
+                    <label>Standard Vibes</label>
+                    {% for category, vibes in standard_vibes.items() %}
+                    <h3 class="form-subheading">
+                        {{ "Food & Drink" if category == "foodDrink" else ("Purpose / Who It's For" if category == "purpose" else category|capitalize) }}
+                    </h3>
+                    {% set field_name = "vibes" %}
+                    {% set options = vibes %}
+                    {% set selected = selected_vibes %}
+                    {% include "components/tag_chip_list.html" with context %}
+                    {% endfor %}
+                    <p class="text-muted small" id="standard-vibe-count">Select at least one vibe</p>
+                </div>
+
+                <div class="form-field">
+                    <label>Cheeky Vibes <span class="text-muted">(Optional personality traits)</span></label>
+                    {% for category, vibes in cheeky_vibes_options.items() %}
+                    <h3 class="form-subheading">
+                        {{ "Work & Study" if category == "workStudy" else ("Pakistani Energy" if category == "pakistaniEnergy" else category|capitalize) }}
+                    </h3>
+                    {% set field_name = "cheeky_vibes" %}
+                    {% set options = vibes %}
+                    {% set selected = selected_cheeky_vibes %}
+                    {% include "components/tag_chip_list.html" with context %}
+                    {% endfor %}
+                </div>
+
+                <div class="form-field">
+                    <div class="form-field-header">
+                        <label>Description</label>
+                        <button type="button" class="link-accent-btn" id="generate-ai-btn" onclick="generateAiDescription()">
+                            <i class="fas fa-magic"></i> Generate with AI
+                        </button>
+                    </div>
+                    <textarea name="description" id="description-input" required rows="4"
+                              placeholder="Tell us what makes this place special...">{{ form_data.get('description', '') }}</textarea>
+                </div>
+
+                <div class="form-field">
+                    <label>Parking Availability</label>
+                    <select name="parking">
+                        {% for option in parking_options %}
+                        <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label>Facilities</label>
+                    <div class="checkbox-row">
+                        {% for key, label in facility_fields %}
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="{{ key }}">
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Opening Hours (Optional)</h2>
+                <p class="text-muted small">Leave blank for days you are closed. Example: "8:00 AM - 5:00 PM" or "Closed"</p>
+                <div class="form-grid form-grid-2">
+                    {% for day in days_of_week %}
+                    <div class="form-field">
+                        <label class="capitalize">{{ day }}</label>
+                        <input type="text" name="hours_{{ day }}" placeholder="e.g. 8:00 AM - 5:00 PM">
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h2>Photos</h2>
+                <div class="photo-grid" id="photo-preview-grid"></div>
+                <button type="button" class="upload-tile" onclick="document.getElementById('images-input').click()">
+                    <i class="fas fa-camera"></i>
+                    <span>Add Photos</span>
+                </button>
+                <input type="file" id="images-input" name="images" class="hidden" multiple accept="image/*"
+                       onchange="handleAddSpotImagePreview(this)">
+            </section>
+
+            <div class="form-submit-row">
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="add-spot-submit">
+                    Submit Spot <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        setupAddSpotForm();
+    });
+</script>
+{% endblock %}

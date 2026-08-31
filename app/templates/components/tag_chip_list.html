@@ -1,0 +1,13 @@
+{# Reusable list of tag chip style checkboxes/buttons, mirrors components/TagChip.tsx.
+   Expected context: `field_name` (form field name), `options` (list of label strings),
+   `selected` (list of currently selected labels), `chip_class` (optional extra CSS class). #}
+<div class="tag-chip-list {{ chip_class|default('') }}">
+    {% for option in options %}
+    <label class="tag-chip {% if option in selected %}tag-chip-selected{% endif %}">
+        <input type="checkbox" name="{{ field_name }}" value="{{ option }}"
+               {% if option in selected %}checked{% endif %}
+               onchange="this.parentElement.classList.toggle('tag-chip-selected', this.checked)">
+        <span>{{ option }}</span>
+    </label>
+    {% endfor %}
+</div>

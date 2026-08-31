@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}{{ shop.name }}, Bytwise{% endblock %}
+
+{% block content %}
+<div class="shop-detail-page" data-shop-id="{{ shop.id }}">
+
+    {# Review Modal, mirrors the "Stamp Your Passport" modal in ShopDetail.tsx #}
+    <div id="review-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2>Stamp Your Passport?</h2>
+            <p class="modal-subtitle">Leave a review to document your visit.</p>
+            <div class="star-picker" id="review-star-picker">
+                {% for i in range(1, 6) %}
+                <button type="button" class="star-picker-btn" data-value="{{ i }}" onclick="setReviewRating({{ i }})">
+                    <i class="fas fa-star"></i>
+                </button>
+                {% endfor %}
+            </div>
+            <textarea id="review-comment" rows="3" placeholder="What's the vibe? How's the coffee?"></textarea>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-primary btn-block" onclick="submitReview('{{ shop.id }}')">
+                    Post Review &amp; Stamp
+                </button>
+                <button type="button" class="btn-text-muted" onclick="skipReview('{{ shop.id }}')">
+                    Just Stamp Passport
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {# Lightbox, mirrors ShopDetail.tsx's lightbox modal #}
+    <div id="lightbox" class="lightbox hidden">
+        <button type="button" class="lightbox-close" onclick="closeLightbox()"><i class="fas fa-times"></i></button>
+        <button type="button" class="lightbox-nav lightbox-prev" onclick="prevLightboxImage()"><i class="fas fa-chevron-left"></i></button>
+        <img id="lightbox-image" src="" alt="Lightbox view">
+        <div class="lightbox-caption" id="lightbox-caption"></div>
+        <button type="button" class="lightbox-nav lightbox-next" onclick="nextLightboxImage()"><i class="fas fa-chevron-right"></i></button>
+    </div>
+
+    <div class="shop-hero" style="background-image: url('{{ shop.gallery[0].url if shop.gallery else '' }}');" onclick="openLightbox(0)">
+        <div class="shop-hero-overlay"></div>
+        {% if is_visited %}
+        <div class="visited-stamp">
+            <p class="visited-stamp-brand">Bytwise</p>
+            <p class="visited-stamp-label">VISITED</p>
+            <i class="fas fa-check"></i>
+        </div>
+        {% endif %}
+        <a href="/" class="shop-hero-back" onclick="event.stopPropagation()"><i class="fas fa-arrow-left"></i></a>
+        <div class="shop-hero-info">
+            <div class="shop-hero-badges">
+                {% if shop.isClaimed %}
+                <span class="badge badge-verified"><i class="fas fa-certificate"></i> VERIFIED</span>
+                {% endif %}
+                <span class="badge badge-dark"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.rating) }} ({{ shop.reviewCount }})</span>
+                <span class="badge badge-dark"><i class="fas fa-stamp"></i> {{ shop.stampCount }} Passports Stamped</span>
+            </div>
+            <h1>{{ shop.name }}</h1>
+            <p><i class="fas fa-map-marker-alt"></i> {{ shop.location.city }}, {{ shop.location.state }}</p>
+        </div>
+    </div>
+
+    <div class="shop-detail-grid">
+        <div class="shop-detail-main">
+
+            <section class="card">
+                <h2>The Lowdown</h2>
+                <p class="shop-description">{{ shop.description }}</p>
+                <div class="vibe-vote-row">
+                    {% for v in shop.vibes %}
+                    {% set rating = shop.vibeRatings.get(v) if shop.vibeRatings else none %}
+                    <div class="vibe-vote-chip">
+                        <span class="vibe-vote-label">{{ v }}</span>
+                        <span class="vibe-vote-score {{ vibe_score_classes.get(v, '') if rating and rating.total else 'score-new' }}">
+                            {% if rating and rating.total %}{{ rating.score }}%{% else %}New{% endif %}
+                        </span>
+                        {% if user %}
+                        <button type="button" class="vibe-vote-btn" title="Thumbs up {{ v }}"
+                                onclick="voteOnVibe('{{ shop.id }}', '{{ v }}', 'up', this)">
+                            <i class="fas fa-thumbs-up"></i>
+                        </button>
+                        <button type="button" class="vibe-vote-btn" title="Thumbs down {{ v }}"
+                                onclick="voteOnVibe('{{ shop.id }}', '{{ v }}', 'down', this)">
+                            <i class="fas fa-thumbs-down"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Facilities</h2>
+                {% if enabled_facilities or custom_facilities %}
+                <div class="tag-row">
+                    {% for facility in enabled_facilities + custom_facilities %}
+                    <span class="facility-chip"><i class="fas fa-check"></i> {{ facility }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No facilities listed yet.</p>
+                {% endif %}
+            </section>
+
+            <section class="card">
+                <div class="section-header-row">
+                    <h2>The Aesthetic</h2>
+                    <div class="segmented-control" id="gallery-filter">
+                        <button type="button" class="segmented-btn active" data-filter="all" onclick="setGalleryFilter('all')">all</button>
+                        <button type="button" class="segmented-btn" data-filter="owner" onclick="setGalleryFilter('owner')">owner</button>
+                        <button type="button" class="segmented-btn" data-filter="community" onclick="setGalleryFilter('community')">community</button>
+                    </div>
+                </div>
+
+                <div class="gallery-grid" id="gallery-grid">
+                    {% set is_admin = user and user.is_admin %}
+                    {% for image in shop.gallery %}
+                    {% set index = loop.index0 %}
+                    {% include "components/gallery_item.html" with context %}
+                    {% endfor %}
+                </div>
+                {% if shop.gallery|length == 0 %}
+                <div class="empty-state">
+                    <i class="fas fa-images"></i>
+                    <p>No photos yet.</p>
+                </div>
+                {% endif %}
+
+                {% if not is_claimed_owner %}
+                <div class="upload-photo-row">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('photo-upload-input').click()">
+                        <i class="fas fa-camera"></i> Submit Photo for Approval
+                    </button>
+                    <input type="file" id="photo-upload-input" multiple accept="image/*" class="hidden"
+                           onchange="uploadShopPhoto('{{ shop.id }}', this)">
+                </div>
+                {% endif %}
+            </section>
+
+            <section>
+                <h2><i class="fas fa-tasks"></i> Vibe Check</h2>
+                <div class="vibe-check-grid">
+                    {% for vibe in all_cheeky_vibes %}
+                    <label class="vibe-check-item {% if vibe in shop.cheekyVibes %}vibe-check-active{% endif %}">
+                        <span class="vibe-check-box"><i class="fas fa-check"></i></span>
+                        {{ vibe }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-header-row">
+                    <h2>Reviews</h2>
+                    <span class="text-muted">{{ shop.reviews|length }} {{ "review" if shop.reviews|length == 1 else "reviews" }}</span>
+                </div>
+                <div class="review-list">
+                    {% for review in shop.reviews %}
+                    <div class="review-item">
+                        <div class="review-header">
+                            <a href="/profile/{{ review.userId }}" class="review-avatar">
+                                <img src="{{ review.avatarUrl }}" alt="{{ review.username }}">
+                            </a>
+                            <div>
+                                <a href="/profile/{{ review.userId }}" class="review-username">{{ review.username }}</a>
+                                {% set rating = review.rating %}
+                                {% include "components/star_rating.html" %}
+                            </div>
+                            <span class="review-date">{{ review.date }}</span>
+                        </div>
+                        <p class="review-comment">{{ review.comment }}</p>
+                    </div>
+                    {% else %}
+                    <p class="empty-italic">No reviews yet. Be the first!</p>
+                    {% endfor %}
+                </div>
+                {% if not is_claimed_owner %}
+                <button type="button" class="btn btn-outline btn-block" onclick="openReviewModal()">Write a Review</button>
+                {% endif %}
+            </section>
+        </div>
+
+        <div class="shop-detail-sidebar">
+            <div class="card sticky-card">
+                {% if shop.isClaimed %}
+                <div class="verified-banner">
+                    <i class="fas fa-check"></i>
+                    <div>
+                        <p class="verified-banner-title">Verified Business</p>
+                        <p class="verified-banner-subtitle">Managed by Owner</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="detail-block">
+                    <p class="detail-label">ADDRESS</p>
+                    <a class="btn btn-location btn-xs"
+                       href="{% if shop.location.address.startswith('http') %}{{ shop.location.address }}{% else %}https://www.google.com/maps/search/?api=1&query={{ (shop.name ~ ', ' ~ shop.location.address ~ ', ' ~ shop.location.city)|urlencode }}{% endif %}"
+                       target="_blank" rel="noreferrer">
+                        <i class="fas fa-location-dot"></i> Location
+                    </a>
+                    <p>{{ shop.location.city }}, {{ shop.location.state }}</p>
+                </div>
+
+                <div class="detail-block">
+                    <p class="detail-label">HOURS</p>
+                    {% set has_hours = shop.openHours and shop.openHours.values()|select|list|length > 0 %}
+                    {% if has_hours %}
+                    <div class="hours-list">
+                        {% for day in days_of_week %}
+                        {% if shop.openHours.get(day) %}
+                        <p><span>{{ day[:3]|capitalize }}:</span> {{ shop.openHours.get(day) }}</p>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted italic">Hours not available</p>
+                    {% endif %}
+                </div>
+
+                <div class="action-stack">
+                    {% if is_owner %}
+                    <a href="/edit-shop/{{ shop.id }}" class="btn btn-dark btn-block">
+                        <i class="fas fa-pen"></i> Edit Shop Details
+                    </a>
+                    {% endif %}
+
+                    {% if user %}
+                    <button type="button" class="btn {{ 'btn-secondary' if is_saved else 'btn-outline' }} btn-block"
+                            id="save-shop-btn" onclick="toggleSaveShop('{{ shop.id }}', this)">
+                        <i class="{{ 'fas' if is_saved else 'far' }} fa-heart"></i>
+                        <span>{{ "Saved" if is_saved else "Save Spot" }}</span>
+                    </button>
+                    <button type="button" class="btn {{ 'btn-secondary' if is_visited else 'btn-outline' }} btn-block"
+                            id="visit-shop-btn" data-visited="{{ 'true' if is_visited else 'false' }}"
+                            onclick="handleVisitedClick('{{ shop.id }}', {{ 'true' if is_claimed_owner else 'false' }})">
+                        <i class="{{ 'fas fa-check-circle' if is_visited else 'fas fa-stamp' }}"></i>
+                        <span>{{ "Visited" if is_visited else "Stamp My Passport" }}</span>
+                    </button>
+                    {% else %}
+                    <a href="/auth" class="btn btn-outline btn-block"><i class="far fa-heart"></i> Save Spot</a>
+                    {% endif %}
+
+                    <a href="{% if shop.location.address.startswith('http') %}{{ shop.location.address }}{% else %}https://www.google.com/maps/search/?api=1&query={{ (shop.name ~ ', ' ~ shop.location.address ~ ', ' ~ shop.location.city)|urlencode }}{% endif %}"
+                       target="_blank" rel="noreferrer" class="btn btn-dark btn-block">
+                        <i class="fas fa-location-arrow"></i> Get Directions
+                    </a>
+                </div>
+
+                {% if not shop.isClaimed %}
+                <div class="claim-block">
+                    {% if pending_request %}
+                    <div class="pending-banner"><i class="fas fa-clock"></i> Verification Pending</div>
+                    {% else %}
+                    <p class="text-muted">Own this business?</p>
+                    {% if user %}
+                    <a href="/claim/{{ shop.id }}" class="btn btn-secondary btn-block">Claim My Shop</a>
+                    {% else %}
+                    <a href="/auth" class="btn btn-secondary btn-block">Claim My Shop</a>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h3><i class="fas fa-users"></i> The Community</h3>
+                <div class="segmented-control" id="community-tabs">
+                    <button type="button" class="segmented-btn active" data-tab="visited" onclick="setCommunityTab('visited')">
+                        Visited ({{ shop.stampCount }})
+                    </button>
+                    <button type="button" class="segmented-btn" data-tab="saved" onclick="setCommunityTab('saved')">Saved</button>
+                </div>
+
+                <div id="community-visited" class="community-list">
+                    {% if visitors %}
+                    <div class="facepile">
+                        {% for person in visitors %}
+                        <a href="/profile/{{ person.id }}" title="{{ person.username }}" class="facepile-avatar">
+                            <img src="{{ person.avatarUrl }}" alt="{{ person.username }}">
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <p class="text-muted"><strong>{{ visitors[0].username }}</strong> and others have been here.</p>
+                    {% else %}
+                    <p class="empty-italic">No one has visited this yet. Be the first!</p>
+                    {% endif %}
+                </div>
+                <div id="community-saved" class="community-list hidden">
+                    {% if savers %}
+                    <div class="facepile">
+                        {% for person in savers %}
+                        <a href="/profile/{{ person.id }}" title="{{ person.username }}" class="facepile-avatar">
+                            <img src="{{ person.avatarUrl }}" alt="{{ person.username }}">
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <p class="text-muted"><strong>{{ savers[0].username }}</strong> and others have saved this.</p>
+                    {% else %}
+                    <p class="empty-italic">No one has saved this yet. Be the first!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
