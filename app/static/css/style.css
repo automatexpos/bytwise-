@@ -626,6 +626,28 @@ textarea {
     box-shadow: var(--shadow-sm);
 }
 
+.tag-chip-scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.4rem;
+    scrollbar-width: thin;
+}
+
+.tag-chip-scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.tag-chip-scroll::-webkit-scrollbar-thumb {
+    background: var(--coffee-200);
+    border-radius: var(--radius-full);
+}
+
+.tag-chip-scroll .tag-chip {
+    flex-shrink: 0;
+}
+
 .mini-tag {
     font-size: 0.7rem;
     background: var(--coffee-50);

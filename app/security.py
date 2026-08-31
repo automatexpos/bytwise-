@@ -165,7 +165,10 @@ def get_current_user(request: Request) -> Optional[User]:
     if not auth_response or not auth_response.user:
         return None
 
-    return db_service.fetch_user_profile(client, auth_response.user.id)
+    profile = db_service.fetch_user_profile(client, auth_response.user.id)
+    if not profile:
+        return None
+    return User(**profile)
 
 
 def require_user(user: Optional[User] = Depends(get_current_user)) -> User:

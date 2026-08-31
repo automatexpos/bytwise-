@@ -13,7 +13,7 @@ server rendered app.
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -71,6 +71,17 @@ def _shop_by_id(shops: list[dict[str, Any]], shop_id: str) -> Optional[dict[str,
         if shop.get("id") == shop_id:
             return shop
     return None
+
+
+def _is_uploaded_file(value: Any) -> bool:
+    """
+    Checks whether a form field value is an actual uploaded file with
+    content, not a plain text field. `request.form()` returns Starlette's
+    own `UploadFile` (a superclass of `fastapi.UploadFile`), so an
+    `isinstance(value, fastapi.UploadFile)` check never matches; this
+    duck-types on `filename` instead.
+    """
+    return not isinstance(value, str) and bool(getattr(value, "filename", None))
 
 
 def _get_vibe_score_class(score: int) -> str:
@@ -131,7 +142,7 @@ def _load_claim_requests_for(user: Optional[User], supabase) -> list[dict[str, A
 def home(
     request: Request,
     q: str = "",
-    vibe: Optional[list[str]] = None,
+    vibe: Optional[list[str]] = Query(default=None),
     user: Optional[User] = Depends(get_current_user),
     supabase=Depends(get_request_supabase_client),
 ) -> HTMLResponse:
@@ -264,7 +275,7 @@ async def shop_upload_photo(
     type 'community' with approved=False until an admin approves them.
     """
     form = await request.form()
-    images = [f for f in form.getlist("images") if isinstance(f, UploadFile) and f.filename]
+    images = [f for f in form.getlist("images") if _is_uploaded_file(f) and f.filename]
     if not images:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No photos were provided.")
 
@@ -345,8 +356,12 @@ async def add_spot_submit(
     address = str(form.get("address") or "").strip()
     description = str(form.get("description") or "").strip()
     parking = str(form.get("parking") or "Unknown")
-    lat = float(form.get("lat") or 0)
-    lng = float(form.get("lng") or 0)
+    coordinates = db_service.get_coordinates(address)
+    if coordinates:
+        lat, lng = coordinates
+    else:
+        lat = float(form.get("lat") or 0)
+        lng = float(form.get("lng") or 0)
 
     selected_vibes = form.getlist("vibes")
     selected_cheeky_vibes = form.getlist("cheeky_vibes")
@@ -354,7 +369,7 @@ async def add_spot_submit(
     facilities = {key: (form.get(key) == "on") for key, _ in FACILITY_FIELDS}
     open_hours = {day: str(form.get(f"hours_{day}") or "") for day in DAYS_OF_WEEK}
 
-    images = [f for f in form.getlist("images") if isinstance(f, UploadFile) and f.filename]
+    images = [f for f in form.getlist("images") if _is_uploaded_file(f) and f.filename]
 
     error: Optional[str] = None
     if not address:
@@ -598,8 +613,12 @@ async def edit_shop_submit(
     state = str(form.get("state") or "").strip()
     area = str(form.get("area") or "").strip()
     address = str(form.get("address") or "").strip()
-    lat = float(form.get("lat") or shop["location"]["lat"])
-    lng = float(form.get("lng") or shop["location"]["lng"])
+    coordinates = db_service.get_coordinates(address)
+    if coordinates:
+        lat, lng = coordinates
+    else:
+        lat = float(form.get("lat") or shop["location"]["lat"])
+        lng = float(form.get("lng") or shop["location"]["lng"])
     parking = str(form.get("parking") or "Unknown")
     facilities = {key: (form.get(key) == "on") for key, _ in FACILITY_FIELDS}
     custom_facility_list = [f for f in form.getlist("custom_facilities") if f]
@@ -646,7 +665,7 @@ async def edit_shop_submit(
     selected_cheeky_vibes = form.getlist("cheeky_vibes")
     open_hours = {day: str(form.get(f"hours_{day}") or "") for day in DAYS_OF_WEEK}
 
-    new_images = [f for f in form.getlist("images") if isinstance(f, UploadFile) and f.filename]
+    new_images = [f for f in form.getlist("images") if _is_uploaded_file(f) and f.filename]
     kept_urls = set(form.getlist("kept_images"))
 
     existing_gallery = shop.get("gallery") or []
@@ -995,7 +1014,7 @@ async def edit_profile_submit(
     avatar_file = form.get("avatar")
 
     final_avatar_url = user.avatar_url
-    if isinstance(avatar_file, UploadFile) and avatar_file.filename:
+    if _is_uploaded_file(avatar_file) and avatar_file.filename:
         content = await avatar_file.read()
         try:
             upload_result = storage_service.upload_image(

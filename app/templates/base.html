@@ -29,7 +29,8 @@
                         <i class="fas fa-plus"></i> <span class="hide-mobile">Add Spot</span>
                     </a>
                     <a href="/profile" class="navbar-avatar">
-                        <img src="{{ user.avatar_url }}" alt="{{ user.username }}">
+                        <img src="{{ user.avatar_url }}" alt="{{ user.username }}"
+                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=231b15&color=ccff00';">
                     </a>
                 {% else %}
                     <a href="/auth?next={{ request.url.path|urlencode }}" class="btn btn-primary btn-sm">Login</a>

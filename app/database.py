@@ -14,9 +14,30 @@ so RLS continues to apply exactly as it did in the TypeScript app.
 
 from functools import lru_cache
 
+import base64
+import json
+import time
+
 from supabase import Client, ClientOptions, create_client
 
 from app.config import get_settings
+
+
+def _is_jwt_expired(token: str) -> bool:
+    """
+    Cheaply checks a JWT's `exp` claim without verifying its signature
+    (Supabase itself verifies the signature; this just avoids sending a
+    token we already know is stale, which PostgREST would reject outright
+    with a "JWT expired" error instead of falling back to anonymous access).
+    """
+    try:
+        payload_segment = token.split(".")[1]
+        padding = "=" * (-len(payload_segment) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_segment + padding))
+        exp = payload.get("exp")
+        return bool(exp) and time.time() >= exp
+    except Exception:
+        return False
 
 
 @lru_cache
@@ -73,7 +94,7 @@ def get_supabase_client(access_token: str | None = None) -> Client:
     )
     client = create_client(settings.supabase_url, settings.supabase_anon_key, options)
 
-    if access_token:
+    if access_token and not _is_jwt_expired(access_token):
         # Attach the bearer token to PostgREST so `auth.uid()` inside RLS
         # policies resolves to this user, the same way the browser client's
         # persisted session did.

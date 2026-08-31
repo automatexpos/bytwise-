@@ -479,6 +479,23 @@ function updateLatLngFromMapsUrl(input) {
     toast.error("Could not read coordinates from that link. Try copying the URL after opening the pin in Google Maps.");
 }
 
+function openMapsSearchForNewSpot() {
+    var nameInput = document.querySelector('input[name="name"]');
+    var cityInput = document.querySelector('input[name="city"]');
+    var name = nameInput ? nameInput.value.trim() : "";
+    var city = cityInput ? cityInput.value.trim() : "";
+    var query = [name, city].filter(Boolean).join(", ");
+
+    var url = query
+        ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query)
+        : "https://www.google.com/maps";
+
+    if (!query) {
+        toast.info("Enter the shop name and city first for a more accurate search.");
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+}
+
 /* ==================== ADD SPOT FORM ==================== */
 
 function setupAddSpotForm() {

@@ -13,11 +13,18 @@ change during the TypeScript to Python port.
 """
 
 import time
+import re
 from typing import Any, Callable, Optional, TypeVar
 
 from supabase import Client
 
 T = TypeVar("T")
+
+
+def get_coordinates(url: str) -> Optional[tuple[float, float]]:
+    """Extracts (lat, lng) from a Google Maps URL's "@lat,lng" segment."""
+    match = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", url or "")
+    return (float(match.group(1)), float(match.group(2))) if match else None
 
 
 # ==================== RETRY UTILITY ====================
@@ -124,13 +131,13 @@ def fetch_user_profile(supabase: Client, user_id: str) -> Optional[dict[str, Any
             "id": profile["id"],
             "username": profile["username"],
             "email": profile["email"],
-            "avatarUrl": profile.get("avatar_url"),
+            "avatarUrl": profile.get("avatar_url") or "",
             "bio": profile.get("bio") or "",
             "socialLinks": {
                 "instagram": profile.get("instagram"),
                 "x": profile.get("x"),
             },
-            "isBusinessOwner": profile.get("is_business_owner"),
+            "isBusinessOwner": profile.get("is_business_owner") or False,
             "isAdmin": profile.get("is_admin") or False,
             "savedShops": [row["shop_id"] for row in (saved_result.data or [])],
             "visitedShops": [row["shop_id"] for row in (visited_result.data or [])],
@@ -197,13 +204,13 @@ def fetch_user_profile_by_username(
             "id": profile["id"],
             "username": profile["username"],
             "email": profile["email"],
-            "avatarUrl": profile.get("avatar_url"),
+            "avatarUrl": profile.get("avatar_url") or "",
             "bio": profile.get("bio") or "",
             "socialLinks": {
                 "instagram": profile.get("instagram"),
                 "x": profile.get("x"),
             },
-            "isBusinessOwner": profile.get("is_business_owner"),
+            "isBusinessOwner": profile.get("is_business_owner") or False,
             "isAdmin": profile.get("is_admin") or False,
             "savedShops": [row["shop_id"] for row in (saved_result.data or [])],
             "visitedShops": [row["shop_id"] for row in (visited_result.data or [])],
@@ -421,14 +428,21 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                     }
                 )
 
+            lat = float(shop["lat"] or 0)
+            lng = float(shop["lng"] or 0)
+            if lat == 0 and lng == 0:
+                coordinates = get_coordinates(shop.get("address") or "")
+                if coordinates:
+                    lat, lng = coordinates
+
             results.append(
                 {
                     "id": shop["id"],
                     "name": shop["name"],
                     "description": shop.get("description") or "",
                     "location": {
-                        "lat": float(shop["lat"]),
-                        "lng": float(shop["lng"]),
+                        "lat": lat,
+                        "lng": lng,
                         "address": shop.get("address"),
                         "city": shop.get("city"),
                         "state": shop.get("state"),

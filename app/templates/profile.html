@@ -6,7 +6,8 @@
 
     <div class="card profile-header-card">
         <div class="profile-avatar-wrap">
-            <img src="{{ viewed_user.avatarUrl }}" alt="{{ viewed_user.username }}" class="profile-avatar" id="profile-avatar-preview">
+            <img src="{{ viewed_user.avatarUrl }}" alt="{{ viewed_user.username }}" class="profile-avatar" id="profile-avatar-preview"
+                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ viewed_user.username|urlencode }}&background=231b15&color=ccff00';">
             {% if is_own_profile %}
             <button type="button" class="profile-avatar-edit-btn hidden" id="avatar-edit-btn"
                     onclick="document.getElementById('avatar-file-input').click()">
@@ -44,7 +45,7 @@
             </form>
             {% endif %}
 
-            <div id="profile-view-block" class="{% if is_own_profile %}hidden{% endif %}">
+            <div id="profile-view-block">
                 <div class="profile-name-row">
                     <h1>@{{ viewed_user.username }}</h1>
                     {% if is_own_profile %}

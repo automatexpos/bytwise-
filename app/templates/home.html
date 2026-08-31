@@ -13,6 +13,7 @@
             {% set field_name = "vibe" %}
             {% set options = standard_vibe_options %}
             {% set selected = selected_vibes %}
+            {% set chip_class = "tag-chip-scroll" %}
             {% include "components/tag_chip_list.html" with context %}
             <noscript><button type="submit" class="btn btn-primary btn-sm">Filter</button></noscript>
         </form>
