@@ -9,11 +9,18 @@
  *
  * Contract with the backend:
  *   POST {base}/chat  { session_id, message } ->
- *     { success, session_id, reply, stage, slots, restaurants: [...] }
+ *     { success, session_id, reply, stage, slots, options: [...], restaurants: [...] }
  *   POST {base}/reset { session_id } -> { success }
  *   Each restaurant in "restaurants" has: name, description, area, city,
  *   vibes, cheeky_vibes, rating, review_count, parking, facilities,
  *   maps_link.
+ *
+ * The backend now runs a guided Q&A: every question it asks comes back
+ * with an "options" array of the only valid answers (sourced straight
+ * from the database), and it expects the picked option's exact text back
+ * as the next message. This widget renders those as clickable buttons
+ * and hides the free-text input while a question with options is
+ * pending, so the user can't type something outside the real data.
  */
 
 (function () {
@@ -43,8 +50,8 @@
         launcher.setAttribute("aria-expanded", isOpen ? "true" : "false");
         if (isOpen && !hasOpenedOnce) {
             hasOpenedOnce = true;
-            addBubble("Hi! Tell me what kind of place you're looking for and I'll find a match.", "bot");
-            input.focus();
+            addBubble("Hi! I'll ask a few quick questions to find the right match for you.", "bot");
+            startGuidedQuestions();
         }
     }
 
@@ -103,12 +110,49 @@
         scrollToBottom();
     }
 
+    // Toggles the free-text input off while a guided question with option
+    // buttons is pending, so the only way to answer is to pick one of the
+    // real, database-backed choices.
+    function setOptionsPending(pending) {
+        form.classList.toggle("chatbot-input-row-hidden", pending);
+        input.disabled = pending;
+    }
+
+    function renderOptions(options) {
+        var wrap = document.createElement("div");
+        wrap.className = "chatbot-options";
+
+        options.forEach(function (optionText) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "chatbot-option-btn";
+            btn.textContent = optionText;
+            btn.addEventListener("click", function () {
+                var buttons = wrap.querySelectorAll("button");
+                for (var i = 0; i < buttons.length; i++) {
+                    buttons[i].disabled = true;
+                }
+                sendMessage(optionText);
+            });
+            wrap.appendChild(btn);
+        });
+
+        messages.appendChild(wrap);
+        scrollToBottom();
+    }
+
     function scrollToBottom() {
         messages.scrollTop = messages.scrollHeight;
     }
 
-    function sendMessage(text) {
-        addBubble(text, "user");
+    // options.silent skips rendering a user bubble for the message, used
+    // for the initial kickoff call that just fetches the first guided
+    // question and isn't something the user actually typed.
+    function sendMessage(text, options) {
+        options = options || {};
+        if (!options.silent) {
+            addBubble(text, "user");
+        }
         showTyping();
 
         return fetch(API_BASE + "/chat", {
@@ -122,6 +166,7 @@
 
                 if (!data.success) {
                     addBubble(data.error || "Something went wrong. Please try again.", "bot");
+                    setOptionsPending(false);
                     return;
                 }
 
@@ -130,11 +175,26 @@
                 if (data.restaurants && data.restaurants.length > 0) {
                     addShopCards(data.restaurants);
                 }
+
+                if (data.options && data.options.length > 0) {
+                    renderOptions(data.options);
+                    setOptionsPending(true);
+                } else {
+                    setOptionsPending(false);
+                }
             })
             .catch(function () {
                 hideTyping();
                 addBubble("I couldn't reach the recommendation service. Please try again in a moment.", "bot");
+                setOptionsPending(false);
             });
+    }
+
+    // Kicks off the guided interview by asking the backend for the first
+    // question. The message text itself is a placeholder the backend
+    // ignores since no question has been asked yet in a fresh session.
+    function startGuidedQuestions() {
+        sendMessage("Hi", { silent: true });
     }
 
     function resetConversation() {
@@ -149,7 +209,9 @@
         sessionId = crypto.randomUUID();
         localStorage.setItem("bytwise_chatbot_session_id", sessionId);
         messages.innerHTML = "";
-        addBubble("Started a new conversation. Tell me what you're in the mood for.", "bot");
+        setOptionsPending(false);
+        addBubble("Started a new conversation.", "bot");
+        startGuidedQuestions();
     }
 
     launcher.addEventListener("click", togglePanel);
@@ -161,8 +223,9 @@
         input.value = "";
         input.disabled = true;
         sendMessage(text).finally(function () {
-            input.disabled = false;
-            input.focus();
+            if (!input.disabled) {
+                input.focus();
+            }
         });
     });
 
