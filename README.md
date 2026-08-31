@@ -79,8 +79,9 @@ This repo is set up to deploy on Vercel as is.
 2. Before the first deploy, add these environment variables in the
    project's Settings, Environment Variables (same values as your local
    `.env`): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`,
-   `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`,
-   `CHATBOT_API_URL` (see "Restaurant chatbot widget" below).
+   `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
+   The chatbot backend's URL is not an environment variable, see
+   "Restaurant chatbot widget" below.
 3. Deploy. The app has no local file writes and no background jobs, so it
    fits Vercel's read only, request scoped serverless model without
    changes. Image uploads go straight to Cloudinary, and all state lives
@@ -97,35 +98,46 @@ the pages and those JSON endpoints.
 
 ## Restaurant chatbot widget
 
-The bottom left chat launcher on every page comes from a separate service:
-a Flask app that talks to a local Ollama model, running on the developer's
-own machine and exposed through a Cloudflare Tunnel (see the `restaurant-ai`
-backend project). This repo only needs to know where that service is.
+The bottom right chat launcher on every page comes from a separate
+service: a Flask app that talks to a local Ollama model, running on the
+developer's own machine and exposed through a Cloudflare Tunnel (see the
+`restaurant-ai` backend project). This repo only needs to know where that
+service currently is, and that address changes every time the tunnel
+restarts, so it is not read from a fixed environment variable anymore.
 
-- `app/config.py` reads `CHATBOT_API_URL` from the environment.
-- `app/routers/pages.py` exposes it to every template as a Jinja2 global
-  (`CHATBOT_API_URL`), so no individual route needs to pass it along.
-- `app/templates/base.html` only renders the launcher, chat panel, and
-  `app/static/js/chatbot.js` when that value is non empty, so the widget
-  stays hidden until it is configured.
-- `app/static/js/chatbot.js` calls `{CHATBOT_API_URL}/chat` and
-  `{CHATBOT_API_URL}/reset` on the Flask backend, matching the request and
-  response shapes documented in that repo.
+- The tunnel URL is written into a single Supabase table,
+  `cloudflare_url` (columns: `id`, `url`, `created_at`), whenever the
+  Cloudflare tunnel starts. That part is handled outside this repo.
+- `app/chatbot_config.py` reads the most recent row from that table with
+  the anonymous Supabase client, cached for 30 seconds so a normal page
+  view does not cost a Supabase round trip. On any read error it falls
+  back to the last URL it fetched successfully instead of hiding the
+  widget over a brief hiccup.
+- `app/routers/pages.py` exposes `get_chatbot_api_url` to every template
+  as a Jinja2 global, so no individual route needs to pass it along.
+- `app/templates/base.html` calls that function once per render and only
+  renders the launcher, chat panel, and `app/static/js/chatbot.js` when
+  it returns a non empty URL, so the widget stays hidden until the table
+  has a row.
+- `app/static/js/chatbot.js` calls `{that URL}/chat` and `{that URL}/reset`
+  on the Flask backend, matching the request and response shapes
+  documented in that repo.
 
-**Local development:** run Ollama, then the Flask backend, then start
-`cloudflared tunnel --url http://localhost:8000` and copy the quick tunnel
-URL it prints into `CHATBOT_API_URL` in your `.env` file. Also set
+**Row Level Security:** the `cloudflare_url` table needs a policy that
+allows `SELECT` for the `anon` role, since page renders happen for
+logged out visitors too. Without it every read fails silently and the
+widget just stays hidden.
+
+**Local development and production both work the same way:** run Ollama,
+then the Flask backend, then start
+`cloudflared tunnel --url http://localhost:8000` and write the quick
+tunnel URL it prints into a new row in the `cloudflare_url` table (the
+tooling that does this already exists outside this repo). Also set
 `CORS_ORIGINS` in the Flask backend's own `.env` to the origin this app is
 served from (e.g. `http://localhost:8000` locally, or your Vercel domain
-in production) so the browser is allowed to call it.
-
-**On Vercel:** add `CHATBOT_API_URL` in the project's Settings,
-Environment Variables, set to your current Cloudflare quick tunnel URL,
-then redeploy (or use the Redeploy button) so the running function picks
-up the new value. Free quick tunnels give a new random URL every time
-`cloudflared` restarts, so you will need to update this variable and
-redeploy whenever the tunnel restarts; a named tunnel on a domain you own
-avoids that and is worth moving to once this is stable.
+in production) so the browser is allowed to call it. No Vercel
+environment variable or redeploy is needed when the tunnel restarts,
+since the next page view just reads the new row.
 
 ## Project layout
 

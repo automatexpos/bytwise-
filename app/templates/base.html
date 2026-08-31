@@ -45,7 +45,8 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% if CHATBOT_API_URL %}
+    {% set chatbot_api_url = get_chatbot_api_url() %}
+    {% if chatbot_api_url %}
     <div id="chatbot-widget" class="chatbot-widget">
         <button id="chatbot-launcher" class="chatbot-launcher" aria-label="Open restaurant chatbot" aria-expanded="false">
             <i class="fas fa-comment-dots chatbot-launcher-icon-open"></i>
@@ -79,8 +80,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="/static/js/app.js"></script>
-    {% if CHATBOT_API_URL %}
-    <script>window.CHATBOT_API_URL = {{ CHATBOT_API_URL|tojson }};</script>
+    {% if chatbot_api_url %}
+    <script>window.CHATBOT_API_URL = {{ chatbot_api_url|tojson }};</script>
     <script src="/static/js/chatbot.js"></script>
     {% endif %}
     {% block extra_js %}{% endblock %}
