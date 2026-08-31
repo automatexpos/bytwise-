@@ -15,12 +15,12 @@
  *   vibes, cheeky_vibes, rating, review_count, parking, facilities,
  *   maps_link.
  *
- * The backend now runs a guided Q&A: every question it asks comes back
- * with an "options" array of the only valid answers (sourced straight
- * from the database), and it expects the picked option's exact text back
- * as the next message. This widget renders those as clickable buttons
- * and hides the free-text input while a question with options is
- * pending, so the user can't type something outside the real data.
+ * The backend runs a conversational guided Q&A: every question it asks
+ * comes back with an "options" array of the answers it can search by, but
+ * those are only suggestions. The user can click one OR type a free-text
+ * reply in their own words and the backend interprets it, so the input
+ * box stays enabled the whole time. Clicking a suggestion is just a
+ * shortcut for typing the same thing.
  */
 
 (function () {
@@ -117,12 +117,19 @@
         scrollToBottom();
     }
 
-    // Toggles the free-text input off while a guided question with option
-    // buttons is pending, so the only way to answer is to pick one of the
-    // real, database-backed choices.
-    function setOptionsPending(pending) {
-        form.classList.toggle("chatbot-input-row-hidden", pending);
-        input.disabled = pending;
+    // Keeps track of the most recently rendered set of suggestion
+    // buttons so it can be disabled the moment the user answers (either
+    // by clicking one or by typing something else instead), preventing a
+    // stale suggestion from being clickable after the conversation has
+    // already moved on to the next question.
+    var activeOptionsWrap = null;
+
+    function disableActiveOptions() {
+        if (!activeOptionsWrap) return;
+        var buttons = activeOptionsWrap.querySelectorAll("button");
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].disabled = true;
+        }
     }
 
     function renderOptions(options) {
@@ -135,16 +142,13 @@
             btn.className = "chatbot-option-btn";
             btn.textContent = optionText;
             btn.addEventListener("click", function () {
-                var buttons = wrap.querySelectorAll("button");
-                for (var i = 0; i < buttons.length; i++) {
-                    buttons[i].disabled = true;
-                }
                 sendMessage(optionText);
             });
             wrap.appendChild(btn);
         });
 
         messages.appendChild(wrap);
+        activeOptionsWrap = wrap;
         scrollToBottom();
     }
 
@@ -155,11 +159,19 @@
     // options.silent skips rendering a user bubble for the message, used
     // for the initial kickoff call that just fetches the first guided
     // question and isn't something the user actually typed.
+    //
+    // Whichever way the user answers (clicking a suggestion or typing
+    // something themselves), any leftover suggestion buttons from the
+    // previous question are disabled here so an old one can't be clicked
+    // after the conversation has moved on, and the input is re-enabled
+    // once the response comes back so the user is always free to type
+    // the next reply.
     function sendMessage(text, options) {
         options = options || {};
         if (!options.silent) {
             addBubble(text, "user");
         }
+        disableActiveOptions();
         showTyping();
 
         return fetch(API_BASE + "/chat", {
@@ -173,7 +185,6 @@
 
                 if (!data.success) {
                     addBubble(data.error || "Something went wrong. Please try again.", "bot");
-                    setOptionsPending(false);
                     return;
                 }
 
@@ -185,15 +196,14 @@
 
                 if (data.options && data.options.length > 0) {
                     renderOptions(data.options);
-                    setOptionsPending(true);
-                } else {
-                    setOptionsPending(false);
                 }
             })
             .catch(function () {
                 hideTyping();
                 addBubble("I couldn't reach the recommendation service. Please try again in a moment.", "bot");
-                setOptionsPending(false);
+            })
+            .finally(function () {
+                input.disabled = false;
             });
     }
 
@@ -216,7 +226,7 @@
         sessionId = crypto.randomUUID();
         localStorage.setItem("bytwise_chatbot_session_id", sessionId);
         messages.innerHTML = "";
-        setOptionsPending(false);
+        activeOptionsWrap = null;
         addBubble("Sure, let's start fresh.", "bot");
         showTyping();
         setTimeout(function () {
@@ -234,9 +244,7 @@
         input.value = "";
         input.disabled = true;
         sendMessage(text).finally(function () {
-            if (!input.disabled) {
-                input.focus();
-            }
+            input.focus();
         });
     });
 

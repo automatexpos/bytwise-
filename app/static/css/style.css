@@ -2746,10 +2746,6 @@ textarea {
     background: var(--coffee-50);
 }
 
-.chatbot-input-row-hidden {
-    display: none;
-}
-
 .chatbot-input {
     flex: 1;
     border: 1px solid var(--coffee-200);
