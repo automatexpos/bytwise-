@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, sta
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.config import get_settings
 from app.constants import CHEEKY_VIBES_OPTIONS, PARKING_OPTIONS, STANDARD_VIBES
 from app.models import User
 from app.security import (
@@ -38,6 +39,10 @@ router = APIRouter()
 # locally and once deployed as a serverless function (e.g. on Vercel).
 _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+
+# Exposed as a global instead of adding it to every route's context dict, so
+# base.html can render the chat widget on every page. Empty string hides it.
+templates.env.globals["CHATBOT_API_URL"] = get_settings().chatbot_api_url
 
 FACILITY_FIELDS = [
     ("has_prayer_area", "Prayer Area"),

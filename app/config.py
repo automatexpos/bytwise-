@@ -31,6 +31,11 @@ class Settings(BaseModel):
 
     gemini_api_key: str = ""
 
+    # Base URL of the separate restaurant chatbot backend (Flask + Ollama),
+    # normally exposed through a Cloudflare Tunnel while it runs on the
+    # developer's own machine. When empty, the chat widget stays hidden.
+    chatbot_api_url: str = ""
+
     @property
     def is_supabase_configured(self) -> bool:
         """Mirrors the isConfigured check in lib/supabase.ts."""
@@ -57,6 +62,10 @@ class Settings(BaseModel):
         placeholder_key = "your-gemini-api-key-here"
         return bool(self.gemini_api_key and self.gemini_api_key != placeholder_key)
 
+    @property
+    def is_chatbot_configured(self) -> bool:
+        return bool(self.chatbot_api_url)
+
 
 def _read_env() -> Settings:
     """
@@ -79,6 +88,7 @@ def _read_env() -> Settings:
         cloudinary_api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
         cloudinary_api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
+        chatbot_api_url=os.environ.get("CHATBOT_API_URL", "").rstrip("/"),
     )
 
 
