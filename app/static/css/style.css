@@ -15,8 +15,8 @@
     --coffee-200: #ded2c4;
     --coffee-100: #eee5d9;
     --coffee-50: #faf6ef;
-    --volt-400: #ccff00;
-    --volt-500: #b8e600;
+    --volt-400: #4682b4;
+    --volt-500: #3c6f99;
     --white: #ffffff;
     --red-500: #dc2626;
     --red-50: #fef2f2;
@@ -218,7 +218,7 @@ a {
 
 .btn-secondary {
     background: var(--volt-400);
-    color: var(--coffee-900);
+    color: var(--white);
     box-shadow: var(--shadow-sm);
 }
 
@@ -247,7 +247,7 @@ a {
 
 .btn-location {
     background: var(--volt-400);
-    color: var(--coffee-900);
+    color: var(--white);
     border-radius: var(--radius-sm);
     font-weight: 700;
 }
@@ -505,7 +505,7 @@ input[type="url"], input[type="number"], select, textarea {
 
 input:focus, select:focus, textarea:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(204, 255, 0, 0.4);
+    box-shadow: 0 0 0 3px rgba(70, 130, 180, 0.4);
     border-color: var(--volt-400);
 }
 
@@ -568,8 +568,8 @@ textarea {
 }
 
 .alert-info {
-    background: rgba(204, 255, 0, 0.1);
-    border: 1px solid rgba(204, 255, 0, 0.3);
+    background: rgba(70, 130, 180, 0.1);
+    border: 1px solid rgba(70, 130, 180, 0.3);
     color: var(--coffee-800);
     display: flex;
     flex-direction: column;
@@ -783,7 +783,7 @@ textarea {
 
 .shop-card {
     display: block;
-    background: var(--white);
+    background: transparent;
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
@@ -793,7 +793,7 @@ textarea {
 
 .shop-card:hover {
     box-shadow: var(--shadow-md);
-    border-color: rgba(204, 255, 0, 0.5);
+    border-color: rgba(70, 130, 180, 0.5);
 }
 
 .shop-card-image-wrap {
@@ -824,7 +824,7 @@ textarea {
     top: 0.75rem;
     right: 0.75rem;
     background: var(--volt-400);
-    color: var(--coffee-900);
+    color: var(--white);
 }
 
 .badge-rating {
@@ -836,7 +836,7 @@ textarea {
 
 .badge-verified {
     background: var(--volt-400);
-    color: var(--coffee-900);
+    color: var(--white);
     position: static;
 }
 
@@ -967,7 +967,7 @@ textarea {
 
 .view-toggle-btn.active {
     background: var(--volt-400);
-    color: var(--coffee-900);
+    color: var(--white);
 }
 
 /* Custom leaflet marker pin */
@@ -1034,7 +1034,7 @@ textarea {
     width: 100px;
     height: 100px;
     border-radius: 50%;
-    border: 4px solid rgba(204, 255, 0, 0.8);
+    border: 4px solid rgba(70, 130, 180, 0.8);
     background: rgba(44, 32, 22, 0.8);
     color: var(--white);
     display: flex;
@@ -1094,6 +1094,10 @@ textarea {
 @media (min-width: 1024px) {
     .shop-detail-grid {
         grid-template-columns: 2fr 1fr;
+        /* Without this, the sidebar column stretches to match the (much
+           taller) main column's height by default, giving the sticky card
+           room to keep floating down past the community card below it. */
+        align-items: start;
     }
 }
 
@@ -1150,7 +1154,7 @@ textarea {
 
 .vibe-vote-btn:hover {
     background: var(--volt-400);
-    color: var(--coffee-900);
+    color: var(--white);
 }
 
 .section-header-row {
@@ -1299,9 +1303,19 @@ textarea {
     gap: 1.5rem;
 }
 
+.reviews-card {
+    margin-top: 1rem;
+    border-top: 3px solid var(--volt-400);
+}
+
 .review-item {
     padding-bottom: 1.5rem;
     border-bottom: 1px solid var(--coffee-100);
+    transition: transform 0.15s ease;
+}
+
+.review-item:hover {
+    transform: translateX(2px);
 }
 
 .review-item:last-child {
@@ -1323,6 +1337,7 @@ textarea {
     overflow: hidden;
     background: var(--coffee-100);
     flex-shrink: 0;
+    border: 2px solid var(--coffee-100);
 }
 
 .review-avatar img {
@@ -1371,7 +1386,7 @@ textarea {
     height: 40px;
     border-radius: 50%;
     background: var(--volt-400);
-    color: var(--coffee-900);
+    color: var(--white);
     display: flex;
     align-items: center;
     justify-content: center;

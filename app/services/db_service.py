@@ -14,6 +14,7 @@ change during the TypeScript to Python port.
 
 import time
 import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Optional, TypeVar
 
 from supabase import Client
@@ -78,6 +79,52 @@ def retry_with_backoff(
 # ==================== PROFILES ====================
 
 
+def _fetch_user_connections(supabase: Client, user_id: str) -> tuple[list[str], list[str], list[str], list[str]]:
+    """
+    Runs the saved shops, visited shops, followers, and following lookups
+    concurrently (they're independent queries) instead of one after another,
+    since each is its own network round trip to PostgREST.
+    """
+
+    def _saved() -> list[str]:
+        result = supabase.table("saved_shops").select("shop_id").eq("user_id", user_id).execute()
+        return [row["shop_id"] for row in (result.data or [])]
+
+    def _visited() -> list[str]:
+        result = supabase.table("visited_shops").select("shop_id").eq("user_id", user_id).execute()
+        return [row["shop_id"] for row in (result.data or [])]
+
+    def _followers() -> list[str]:
+        try:
+            result = (
+                supabase.table("user_follows").select("follower_id").eq("following_id", user_id).execute()
+            )
+            return [row["follower_id"] for row in (result.data or [])]
+        except Exception:
+            return []
+
+    def _following() -> list[str]:
+        try:
+            result = (
+                supabase.table("user_follows").select("following_id").eq("follower_id", user_id).execute()
+            )
+            return [row["following_id"] for row in (result.data or [])]
+        except Exception:
+            return []
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        saved_future = executor.submit(_saved)
+        visited_future = executor.submit(_visited)
+        followers_future = executor.submit(_followers)
+        following_future = executor.submit(_following)
+        return (
+            saved_future.result(),
+            visited_future.result(),
+            followers_future.result(),
+            following_future.result(),
+        )
+
+
 def fetch_user_profile(supabase: Client, user_id: str) -> Optional[dict[str, Any]]:
     """
     Fetches a user's profile row plus saved shops, visited shops, and
@@ -97,35 +144,9 @@ def fetch_user_profile(supabase: Client, user_id: str) -> Optional[dict[str, Any
         if not profile:
             return None
 
-        saved_result = (
-            supabase.table("saved_shops").select("shop_id").eq("user_id", user_id).execute()
+        saved_shops, visited_shops, followers_data, following_data = _fetch_user_connections(
+            supabase, user_id
         )
-        visited_result = (
-            supabase.table("visited_shops")
-            .select("shop_id")
-            .eq("user_id", user_id)
-            .execute()
-        )
-        try:
-            followers_result = (
-                supabase.table("user_follows")
-                .select("follower_id")
-                .eq("following_id", user_id)
-                .execute()
-            )
-            followers_data = followers_result.data or []
-        except Exception:
-            followers_data = []
-        try:
-            following_result = (
-                supabase.table("user_follows")
-                .select("following_id")
-                .eq("follower_id", user_id)
-                .execute()
-            )
-            following_data = following_result.data or []
-        except Exception:
-            following_data = []
 
         return {
             "id": profile["id"],
@@ -139,14 +160,43 @@ def fetch_user_profile(supabase: Client, user_id: str) -> Optional[dict[str, Any
             },
             "isBusinessOwner": profile.get("is_business_owner") or False,
             "isAdmin": profile.get("is_admin") or False,
-            "savedShops": [row["shop_id"] for row in (saved_result.data or [])],
-            "visitedShops": [row["shop_id"] for row in (visited_result.data or [])],
-            "followerIds": [row["follower_id"] for row in followers_data],
-            "followingIds": [row["following_id"] for row in following_data],
+            "savedShops": saved_shops,
+            "visitedShops": visited_shops,
+            "followerIds": followers_data,
+            "followingIds": following_data,
         }
     except Exception as error:  # noqa: BLE001, mirrors the TS catch and console.error
         print(f"Error fetching user profile: {error}")
         return None
+
+
+def fetch_user_profiles_basic(supabase: Client, user_ids: list[str]) -> list[dict[str, Any]]:
+    """
+    Fetches just id/username/avatarUrl for a batch of user ids in a single
+    query. Used for connection lists (following/followers) where the full
+    fetch_user_profile per id (five sequential queries each) would be a
+    severe N+1 query problem for anyone with more than a couple of connections.
+    """
+    if not user_ids:
+        return []
+    try:
+        response = (
+            supabase.table("profiles")
+            .select("id, username, avatar_url")
+            .in_("id", user_ids)
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as error:  # noqa: BLE001
+        print(f"Error fetching basic user profiles: {error}")
+        return []
+
+    by_id = {
+        row["id"]: {"id": row["id"], "username": row["username"], "avatarUrl": row.get("avatar_url")}
+        for row in rows
+    }
+    # Preserve the caller's requested order (e.g. most recently followed first).
+    return [by_id[user_id] for user_id in user_ids if user_id in by_id]
 
 
 def fetch_user_profile_by_username(
@@ -170,35 +220,9 @@ def fetch_user_profile_by_username(
             return None
 
         user_id = profile["id"]
-        saved_result = (
-            supabase.table("saved_shops").select("shop_id").eq("user_id", user_id).execute()
+        saved_shops, visited_shops, followers_data, following_data = _fetch_user_connections(
+            supabase, user_id
         )
-        visited_result = (
-            supabase.table("visited_shops")
-            .select("shop_id")
-            .eq("user_id", user_id)
-            .execute()
-        )
-        try:
-            followers_result = (
-                supabase.table("user_follows")
-                .select("follower_id")
-                .eq("following_id", user_id)
-                .execute()
-            )
-            followers_data = followers_result.data or []
-        except Exception:
-            followers_data = []
-        try:
-            following_result = (
-                supabase.table("user_follows")
-                .select("following_id")
-                .eq("follower_id", user_id)
-                .execute()
-            )
-            following_data = following_result.data or []
-        except Exception:
-            following_data = []
 
         return {
             "id": profile["id"],
@@ -212,10 +236,10 @@ def fetch_user_profile_by_username(
             },
             "isBusinessOwner": profile.get("is_business_owner") or False,
             "isAdmin": profile.get("is_admin") or False,
-            "savedShops": [row["shop_id"] for row in (saved_result.data or [])],
-            "visitedShops": [row["shop_id"] for row in (visited_result.data or [])],
-            "followerIds": [row["follower_id"] for row in followers_data],
-            "followingIds": [row["following_id"] for row in following_data],
+            "savedShops": saved_shops,
+            "visitedShops": visited_shops,
+            "followerIds": followers_data,
+            "followingIds": following_data,
         }
     except Exception as error:  # noqa: BLE001
         print(f"Error fetching user profile by username: {error}")
@@ -273,7 +297,7 @@ def create_user_profile(
 
         avatar_url = (
             "https://ui-avatars.com/api/?name="
-            f"{urllib.parse.quote(safe_username)}&background=231b15&color=ccff00"
+            f"{urllib.parse.quote(safe_username)}&background=231b15&color=4682b4"
         )
 
         response = (

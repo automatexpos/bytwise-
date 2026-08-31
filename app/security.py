@@ -19,7 +19,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from supabase import Client
 
-from app.database import get_supabase_client
+from app.database import decode_jwt_payload, get_supabase_client
 from app.models import User
 from app.services import db_service
 
@@ -156,16 +156,18 @@ def get_current_user(request: Request) -> Optional[User]:
     if not token:
         return None
 
+    # Reads the user id straight out of the JWT instead of making a remote
+    # call to Supabase's Auth API (client.auth.get_user) on every request.
+    # The very next query (fetch_user_profile) is made with this same token
+    # attached to PostgREST, which independently verifies the JWT signature,
+    # so a forged/tampered token still fails there instead of being trusted.
+    payload = decode_jwt_payload(token)
+    user_id = payload.get("sub") if payload else None
+    if not user_id:
+        return None
+
     client = get_supabase_client(token)
-    try:
-        auth_response = client.auth.get_user(token)
-    except Exception:
-        return None
-
-    if not auth_response or not auth_response.user:
-        return None
-
-    profile = db_service.fetch_user_profile(client, auth_response.user.id)
+    profile = db_service.fetch_user_profile(client, user_id)
     if not profile:
         return None
     return User(**profile)

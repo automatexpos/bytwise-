@@ -906,17 +906,8 @@ def _compute_profile_context(
     following_ids = viewed_user.get("followingIds") or []
     follower_ids = viewed_user.get("followerIds") or []
 
-    following_profiles = []
-    for user_id in following_ids:
-        profile = db_service.fetch_user_profile(supabase, user_id)
-        if profile:
-            following_profiles.append(profile)
-
-    follower_profiles = []
-    for user_id in follower_ids:
-        profile = db_service.fetch_user_profile(supabase, user_id)
-        if profile:
-            follower_profiles.append(profile)
+    following_profiles = db_service.fetch_user_profiles_basic(supabase, following_ids)
+    follower_profiles = db_service.fetch_user_profiles_basic(supabase, follower_ids)
 
     is_following = bool(
         current_user and viewed_user_id in (current_user.following_ids or [])

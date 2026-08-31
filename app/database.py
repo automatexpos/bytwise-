@@ -23,6 +23,22 @@ from supabase import Client, ClientOptions, create_client
 from app.config import get_settings
 
 
+def decode_jwt_payload(token: str) -> dict | None:
+    """
+    Decodes a JWT's payload without verifying its signature (Supabase/
+    PostgREST verifies the signature on every authenticated table query,
+    so a forged token simply fails those queries; this is only used to
+    cheaply read claims like `sub`/`exp` without an extra network round
+    trip to the Supabase Auth API).
+    """
+    try:
+        payload_segment = token.split(".")[1]
+        padding = "=" * (-len(payload_segment) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload_segment + padding))
+    except Exception:
+        return None
+
+
 def _is_jwt_expired(token: str) -> bool:
     """
     Cheaply checks a JWT's `exp` claim without verifying its signature
@@ -30,14 +46,9 @@ def _is_jwt_expired(token: str) -> bool:
     token we already know is stale, which PostgREST would reject outright
     with a "JWT expired" error instead of falling back to anonymous access).
     """
-    try:
-        payload_segment = token.split(".")[1]
-        padding = "=" * (-len(payload_segment) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(payload_segment + padding))
-        exp = payload.get("exp")
-        return bool(exp) and time.time() >= exp
-    except Exception:
-        return False
+    payload = decode_jwt_payload(token)
+    exp = payload.get("exp") if payload else None
+    return bool(exp) and time.time() >= exp
 
 
 @lru_cache
@@ -97,19 +108,11 @@ def get_supabase_client(access_token: str | None = None) -> Client:
     if access_token and not _is_jwt_expired(access_token):
         # Attach the bearer token to PostgREST so `auth.uid()` inside RLS
         # policies resolves to this user, the same way the browser client's
-        # persisted session did.
+        # persisted session did. Deliberately not calling client.auth.set_session()
+        # here: that makes its own remote round trip to the Supabase Auth API on
+        # every request, and nothing in this codebase calls client.auth.get_user()
+        # anymore (get_current_user reads the JWT claims locally instead), so it
+        # would just be dead latency.
         client.postgrest.auth(access_token)
-
-        # Also register the token with the Auth client so that
-        # supabase.auth.get_user() / get_session() style calls made against
-        # this client see the same logged in user.
-        try:
-            client.auth.set_session(access_token, access_token)
-        except Exception:
-            # set_session tries to validate/refresh the session remotely.
-            # If that fails (e.g. no refresh token available), the
-            # PostgREST auth() call above is still sufficient for RLS
-            # scoped table queries, so we do not raise here.
-            pass
 
     return client
