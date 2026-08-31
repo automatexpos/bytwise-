@@ -50,8 +50,15 @@
         launcher.setAttribute("aria-expanded", isOpen ? "true" : "false");
         if (isOpen && !hasOpenedOnce) {
             hasOpenedOnce = true;
-            addBubble("Hi! I'll ask a few quick questions to find the right match for you.", "bot");
-            startGuidedQuestions();
+            addBubble("Hey there! Welcome to Bytwise.", "bot");
+            // Small pause with a typing indicator so the greeting has a
+            // moment to land before the first guided question shows up,
+            // instead of both appearing back to back instantly.
+            showTyping();
+            setTimeout(function () {
+                hideTyping();
+                startGuidedQuestions();
+            }, 900);
         }
     }
 
@@ -210,8 +217,12 @@
         localStorage.setItem("bytwise_chatbot_session_id", sessionId);
         messages.innerHTML = "";
         setOptionsPending(false);
-        addBubble("Started a new conversation.", "bot");
-        startGuidedQuestions();
+        addBubble("Sure, let's start fresh.", "bot");
+        showTyping();
+        setTimeout(function () {
+            hideTyping();
+            startGuidedQuestions();
+        }, 900);
     }
 
     launcher.addEventListener("click", togglePanel);
