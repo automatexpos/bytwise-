@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, sta
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.config import get_settings
+from app.chatbot_config import get_chatbot_api_url
 from app.constants import CHEEKY_VIBES_OPTIONS, PARKING_OPTIONS, STANDARD_VIBES
 from app.models import User
 from app.security import (
@@ -41,8 +41,11 @@ _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 # Exposed as a global instead of adding it to every route's context dict, so
-# base.html can render the chat widget on every page. Empty string hides it.
-templates.env.globals["CHATBOT_API_URL"] = get_settings().chatbot_api_url
+# base.html can render the chat widget on every page. Registered as the
+# function itself (not a value read once at import time), so base.html
+# calls it on every render and always gets the latest tunnel URL out of
+# the cloudflare_url table in Supabase. Empty string hides the widget.
+templates.env.globals["get_chatbot_api_url"] = get_chatbot_api_url
 
 FACILITY_FIELDS = [
     ("has_prayer_area", "Prayer Area"),
