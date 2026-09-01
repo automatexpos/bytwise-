@@ -66,6 +66,40 @@
     <div class="shop-detail-grid">
         <div class="shop-detail-main">
 
+            <section class="card people-say-card">
+                <h2>What People Say <i class="fas fa-star"></i></h2>
+                {% set rating_categories = {
+                    'food_quality': 'Food Quality',
+                    'portion_size': 'Portion Size',
+                    'price_value': 'Price & Value',
+                    'ambience': 'Ambience',
+                    'service': 'Service'
+                } %}
+                <div class="people-say-list">
+                    {% for category, label in rating_categories.items() %}
+                    {% set aggregate = shop.peopleSayRatings.get(category) %}
+                    <div class="people-say-item">
+                        <div>
+                            <h3>{{ label }}</h3>
+                            <p class="people-say-average" data-category-average="{{ category }}" aria-live="polite">
+                                {% if aggregate %}{{ "%.1f"|format(aggregate.average) }} / 5 from {{ aggregate.count }} {{ "rating" if aggregate.count == 1 else "ratings" }}{% else %}No ratings yet{% endif %}
+                            </p>
+                        </div>
+                        {% if user %}
+                        <div class="people-say-stars" role="group" aria-label="Rate {{ label }}">
+                            {% for i in range(1, 6) %}
+                            <button type="button" class="people-say-star" title="Rate {{ label }} {{ i }} out of 5" aria-label="Rate {{ label }} {{ i }} out of 5"
+                                    onclick="savePeopleSayRating('{{ shop.id }}', '{{ category }}', {{ i }}, this)">
+                                <i class="far fa-star"></i>
+                            </button>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
             <section class="card">
                 <h2>The Lowdown</h2>
                 <p class="shop-description">{{ shop.description }}</p>
@@ -148,40 +182,6 @@
                         <span class="vibe-check-box"><i class="fas fa-check"></i></span>
                         {{ vibe }}
                     </label>
-                    {% endfor %}
-                </div>
-            </section>
-
-            <section class="card people-say-card">
-                <h2>What People Say <i class="fas fa-star"></i></h2>
-                {% set rating_categories = {
-                    'food_quality': 'Food Quality',
-                    'portion_size': 'Portion Size',
-                    'price_value': 'Price & Value',
-                    'ambience': 'Ambience',
-                    'service': 'Service'
-                } %}
-                <div class="people-say-list">
-                    {% for category, label in rating_categories.items() %}
-                    {% set aggregate = shop.peopleSayRatings.get(category) %}
-                    <div class="people-say-item">
-                        <div>
-                            <h3>{{ label }}</h3>
-                            <p class="people-say-average" data-category-average="{{ category }}" aria-live="polite">
-                                {% if aggregate %}{{ "%.1f"|format(aggregate.average) }} / 5 from {{ aggregate.count }} {{ "rating" if aggregate.count == 1 else "ratings" }}{% else %}No ratings yet{% endif %}
-                            </p>
-                        </div>
-                        {% if user %}
-                        <div class="people-say-stars" role="group" aria-label="Rate {{ label }}">
-                            {% for i in range(1, 6) %}
-                            <button type="button" class="people-say-star" title="Rate {{ label }} {{ i }} out of 5" aria-label="Rate {{ label }} {{ i }} out of 5"
-                                    onclick="savePeopleSayRating('{{ shop.id }}', '{{ category }}', {{ i }}, this)">
-                                <i class="far fa-star"></i>
-                            </button>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                    </div>
                     {% endfor %}
                 </div>
             </section>
