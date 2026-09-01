@@ -715,7 +715,7 @@ textarea {
 
 @media (min-width: 900px) {
     .home-sidebar {
-        width: 450px;
+        width: 475px;
         flex-shrink: 0;
         height: calc(100vh - 64px);
     }
@@ -798,7 +798,7 @@ textarea {
 
 .shop-card-image-wrap {
     position: relative;
-    height: 160px;
+    height: 175px;
     overflow: hidden;
     background: var(--coffee-100);
 }
