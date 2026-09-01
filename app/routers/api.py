@@ -14,6 +14,14 @@ from app.services import db_service, storage_service
 
 router = APIRouter(prefix="/api")
 
+PEOPLE_SAY_CATEGORIES = {
+    "food_quality",
+    "portion_size",
+    "price_value",
+    "ambience",
+    "service",
+}
+
 
 @router.get("/shops")
 def list_shops(supabase=Depends(get_request_supabase_client)) -> dict[str, Any]:
@@ -46,6 +54,44 @@ def vibe_vote(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(result.get("error") or "Could not save vibe vote."),
+        )
+    return result
+
+
+@router.post("/people-say-ratings")
+def save_people_say_ratings(
+    payload: dict[str, Any] = Body(...),
+    user: User = Depends(require_user),
+    supabase=Depends(get_request_supabase_client),
+) -> dict[str, Any]:
+    """POST /api/people-say-ratings : saves the current user's category ratings."""
+    shop_id = str(payload.get("shopId") or "")
+    ratings = payload.get("ratings")
+    if (
+        not shop_id
+        or not isinstance(ratings, dict)
+        or not ratings
+        or not set(ratings).issubset(PEOPLE_SAY_CATEGORIES)
+    ):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid category rating payload.")
+
+    validated_ratings: dict[str, int] = {}
+    for category, rating in ratings.items():
+        if isinstance(rating, bool):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ratings must be whole numbers from 0 to 5.")
+        try:
+            numeric_rating = float(rating)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ratings must be whole numbers from 0 to 5.")
+        if not numeric_rating.is_integer() or not 0 <= numeric_rating <= 5:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ratings must be whole numbers from 0 to 5.")
+        validated_ratings[category] = int(numeric_rating)
+
+    result = db_service.save_people_say_ratings(supabase, shop_id, user.id, validated_ratings)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(result.get("error") or "Could not save category ratings."),
         )
     return result
 

@@ -96,7 +96,7 @@
             </section>
             {% endif %}
 
-            {% if is_claimed_owner %}
+            {% if is_claimed_owner or user.is_admin %}
             <section class="form-section">
                 <h2>Business Details</h2>
                 <div class="form-field">

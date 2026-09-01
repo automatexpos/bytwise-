@@ -20,6 +20,9 @@
         {% if error %}
         <div class="alert alert-error">{{ error }}</div>
         {% endif %}
+        {% if notice %}
+        <div class="alert">{{ notice }}</div>
+        {% endif %}
 
         <form method="post" action="/auth" class="stacked-form" id="auth-form">
             <input type="hidden" name="mode" value="{{ mode }}">

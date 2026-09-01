@@ -21,6 +21,14 @@ from supabase import Client
 
 T = TypeVar("T")
 
+PEOPLE_SAY_CATEGORIES = (
+    "food_quality",
+    "portion_size",
+    "price_value",
+    "ambience",
+    "service",
+)
+
 
 def get_coordinates(url: str) -> Optional[tuple[float, float]]:
     """Extracts (lat, lng) from a Google Maps URL's "@lat,lng" segment."""
@@ -415,6 +423,28 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
             current["total"] += 1
             current["score"] = round((current["up"] / current["total"]) * 100)
 
+        people_say_ratings: list[dict[str, Any]] = []
+        if shop_ids:
+            try:
+                people_say_response = (
+                    supabase.table("shop_category_ratings")
+                    .select("shop_id, category, rating")
+                    .in_("shop_id", shop_ids)
+                    .execute()
+                )
+                people_say_ratings = people_say_response.data or []
+            except Exception as ratings_error:  # noqa: BLE001
+                if getattr(ratings_error, "code", None) != "42P01":
+                    raise
+
+        people_say_by_shop: dict[str, dict[str, list[float]]] = {}
+        for rating in people_say_ratings:
+            category = rating.get("category")
+            if category not in PEOPLE_SAY_CATEGORIES:
+                continue
+            shop_ratings = people_say_by_shop.setdefault(rating["shop_id"], {})
+            shop_ratings.setdefault(category, []).append(float(rating["rating"]))
+
         results: list[dict[str, Any]] = []
         for shop in shops:
             shop_images = shop.get("shop_images") or []
@@ -459,6 +489,14 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                 if coordinates:
                     lat, lng = coordinates
 
+            category_averages = {
+                category: {
+                    "average": round(sum(scores) / len(scores), 1),
+                    "count": len(scores),
+                }
+                for category, scores in people_say_by_shop.get(shop["id"], {}).items()
+            }
+
             results.append(
                 {
                     "id": shop["id"],
@@ -475,6 +513,7 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                     "gallery": gallery,
                     "vibes": shop.get("vibes") or [],
                     "vibeRatings": vibe_ratings_by_shop.get(shop["id"], {}),
+                    "peopleSayRatings": category_averages,
                     "cheekyVibes": shop.get("cheeky_vibes") or [],
                     "rating": float(shop.get("rating") or 0),
                     "reviewCount": shop.get("review_count") or 0,
@@ -721,6 +760,46 @@ def update_shop_in_db(supabase: Client, shop_id: str, updates: dict[str, Any]) -
 
 
 # ==================== REVIEWS ====================
+
+
+def save_people_say_ratings(
+    supabase: Client, shop_id: str, user_id: str, ratings: dict[str, int]
+) -> dict[str, Any]:
+    """Upserts one 0-5 category rating per user for a shop."""
+    rows = [
+        {
+            "shop_id": shop_id,
+            "user_id": user_id,
+            "category": category,
+            "rating": rating,
+        }
+        for category, rating in ratings.items()
+    ]
+    try:
+        response = (
+            supabase.table("shop_category_ratings")
+            .upsert(rows, on_conflict="shop_id,user_id,category")
+            .execute()
+        )
+        _raise_if_error(response)
+        ratings_response = (
+            supabase.table("shop_category_ratings")
+            .select("category, rating")
+            .eq("shop_id", shop_id)
+            .execute()
+        )
+        _raise_if_error(ratings_response)
+        scores_by_category: dict[str, list[float]] = {}
+        for row in ratings_response.data or []:
+            scores_by_category.setdefault(row["category"], []).append(float(row["rating"]))
+        aggregates = {
+            category: {"average": round(sum(scores) / len(scores), 1), "count": len(scores)}
+            for category, scores in scores_by_category.items()
+        }
+        return {"success": True, "ratings": aggregates}
+    except Exception as error:  # noqa: BLE001
+        print(f"Error saving category ratings: {error}")
+        return {"success": False, "error": error}
 
 
 def add_review(

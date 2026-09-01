@@ -720,6 +720,8 @@ async def edit_shop_submit(
     if new_gallery_images:
         db_service.add_shop_images(supabase, shop_id, new_gallery_images)
 
+    full_facilities: dict[str, Any] = dict(facilities)
+    full_facilities["customFacilities"] = custom_facility_list
     updates = {
         "name": name,
         "description": description,
@@ -732,6 +734,8 @@ async def edit_shop_submit(
         "vibes": selected_vibes,
         "cheeky_vibes": selected_cheeky_vibes,
         "open_hours": open_hours,
+        "parking": parking,
+        "facilities": full_facilities,
     }
     result = db_service.update_shop_in_db(supabase, shop_id, updates)
     if not result.get("success"):
@@ -770,6 +774,7 @@ def auth_form(
     request: Request,
     mode: str = "login",
     next: str = "/",
+    notice: Optional[str] = None,
     user: Optional[User] = Depends(get_current_user),
 ) -> HTMLResponse:
     """GET /auth : login and signup tabs, matches Auth.tsx."""
@@ -781,7 +786,13 @@ def auth_form(
     return templates.TemplateResponse(
         request,
         "auth.html",
-        {"user": None, "mode": mode, "error": None, "next": safe_next},
+        {
+            "user": None,
+            "mode": mode,
+            "error": None,
+            "next": safe_next,
+            "notice": "To write a review please signup" if notice == "review" else None,
+        },
     )
 
 

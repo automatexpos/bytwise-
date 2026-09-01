@@ -306,6 +306,32 @@ function voteOnVibe(shopId, vibe, vote, button) {
         .catch(function (error) { toast.error(error.message || "Could not save vibe vote."); });
 }
 
+function savePeopleSayRating(shopId, category, value, button) {
+    postJson("/api/people-say-ratings", {
+        shopId: shopId,
+        ratings: (function () {
+            var ratings = {};
+            ratings[category] = value;
+            return ratings;
+        })(),
+    })
+        .then(function (data) {
+            var starGroup = button.parentNode;
+            starGroup.querySelectorAll(".people-say-star").forEach(function (star, index) {
+                var icon = star.querySelector("i");
+                icon.className = index < value ? "fas fa-star" : "far fa-star";
+                star.classList.toggle("active", index < value);
+            });
+            var aggregate = data.ratings && data.ratings[category];
+            var averageLabel = document.querySelector('[data-category-average="' + category + '"]');
+            if (aggregate && averageLabel) {
+                averageLabel.textContent = aggregate.average.toFixed(1) + " / 5 from " + aggregate.count + " " + (aggregate.count === 1 ? "rating" : "ratings");
+            }
+            toast.success("Rating saved!");
+        })
+        .catch(function (error) { toast.error(error.message || "Could not save rating."); });
+}
+
 function toggleFollow(userId, button) {
     postJson("/api/follow", { userId: userId })
         .then(function (data) {
