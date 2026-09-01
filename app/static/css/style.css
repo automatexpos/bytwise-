@@ -854,12 +854,12 @@ textarea {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 1rem;
 }
 
 .shop-card-header h3 {
     font-size: 1.05rem;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.5rem;
 }
 
 .shop-card-rating {
