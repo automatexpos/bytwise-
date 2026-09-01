@@ -1012,14 +1012,16 @@ def approve_claim_request(supabase: Client, request_id: str) -> dict[str, Any]:
 
 
 def _format_time(iso_timestamp: Optional[str]) -> str:
-    """Formats an ISO timestamp as a simple h:mm AM/PM time string."""
+    """Formats an ISO timestamp as 'Mon D, YYYY, h:mm AM/PM'."""
     if not iso_timestamp:
         return ""
     try:
         parsed = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
     except ValueError:
         return iso_timestamp
-    return parsed.strftime("%I:%M %p").lstrip("0")
+    date_part = parsed.strftime("%b %d, %Y").replace(" 0", " ")
+    time_part = parsed.strftime("%I:%M %p").lstrip("0")
+    return f"{date_part}, {time_part}"
 
 
 def _raise_if_error(response: Any) -> None:
