@@ -996,6 +996,12 @@ textarea {
 }
 
 /* Custom leaflet marker pin */
+.custom-marker-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .custom-marker-pin {
     width: 26px;
     height: 26px;
@@ -1004,6 +1010,41 @@ textarea {
     border-radius: 50% 50% 50% 0;
     transform: rotate(-45deg);
     box-shadow: var(--shadow-md);
+}
+
+.custom-marker-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--white);
+    border: 1px solid var(--coffee-200);
+    border-radius: var(--radius-full);
+    padding: 0.15rem 0.55rem;
+    margin-bottom: 0.3rem;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--coffee-900);
+    white-space: nowrap;
+    max-width: 160px;
+}
+
+.custom-marker-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+.custom-marker-rating {
+    color: var(--coffee-600);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.custom-marker-rating i {
+    color: #eab308;
+    font-size: 0.65rem;
 }
 
 /* ==================== SHOP DETAIL ==================== */

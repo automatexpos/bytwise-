@@ -122,15 +122,25 @@ function renderShopMarkers(shops) {
     _markers = [];
 
     var markerGroup = L.featureGroup();
-    var customIcon = L.divIcon({
-        className: "custom-div-icon",
-        html: "<div class='custom-marker-pin'></div>",
-        iconSize: [30, 42],
-        iconAnchor: [15, 42],
-    });
 
     shops.forEach(function (shop) {
         if (!shop.location) return;
+
+        var ratingText = shop.peopleSayRating ? Number(shop.peopleSayRating).toFixed(1) : "New";
+        var customIcon = L.divIcon({
+            className: "custom-div-icon",
+            html:
+                "<div class='custom-marker-wrap'>" +
+                "<div class='custom-marker-label'>" +
+                "<span class='custom-marker-name'>" + escapeHtml(shop.name) + "</span>" +
+                "<span class='custom-marker-rating'><i class='fas fa-star'></i> " + ratingText + "</span>" +
+                "</div>" +
+                "<div class='custom-marker-pin'></div>" +
+                "</div>",
+            iconSize: [160, 66],
+            iconAnchor: [80, 42],
+        });
+
         var marker = L.marker([shop.location.lat, shop.location.lng], { icon: customIcon }).addTo(_map);
         marker.on("click", function () {
             window.location.href = "/shop/" + shop.id;
