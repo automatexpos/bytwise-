@@ -847,6 +847,28 @@ def add_review(
 # ==================== SAVED SHOPS ====================
 
 
+def fetch_shop_community(supabase: Client, shop_id: str) -> dict[str, Any]:
+    """
+    Fetches the real users who saved/visited a shop via the
+    get_shop_savers/get_shop_visitors SECURITY DEFINER RPCs (see
+    database/rpc_get_shop_community.sql), since saved_shops/visited_shops
+    RLS only ever exposes a regular client's own rows.
+    """
+    savers_response = supabase.rpc("get_shop_savers", {"p_shop_id": shop_id}).execute()
+    visitors_response = supabase.rpc("get_shop_visitors", {"p_shop_id": shop_id}).execute()
+
+    def to_camel_case(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {"id": row["id"], "username": row["username"], "avatarUrl": row.get("avatar_url") or ""}
+            for row in rows
+        ]
+
+    return {
+        "savers": to_camel_case(savers_response.data or []),
+        "visitors": to_camel_case(visitors_response.data or []),
+    }
+
+
 def toggle_saved_shop(supabase: Client, user_id: str, shop_id: str, is_saved: bool) -> dict[str, Any]:
     """
     Saves or unsaves a shop for a user, depending on `is_saved`.

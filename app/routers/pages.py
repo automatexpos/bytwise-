@@ -68,9 +68,6 @@ DAYS_OF_WEEK = [
     "sunday",
 ]
 
-PAKISTANI_FAKE_NAMES = [
-]
-
 
 def _shop_by_id(shops: list[dict[str, Any]], shop_id: str) -> Optional[dict[str, Any]]:
     for shop in shops:
@@ -98,42 +95,21 @@ def _get_vibe_score_class(score: int) -> str:
     return "score-bad"
 
 
-def _get_shop_community(shop: dict[str, Any], user: Optional[User]) -> dict[str, Any]:
+def _get_shop_community(shop: dict[str, Any], user: Optional[User], supabase) -> dict[str, Any]:
     """
-    Reproduces AppContext.tsx's getShopCommunity: deterministic fake users
-    based on the shop id, plus the current user prepended if they saved or
-    visited this shop. Fake users are only added as filler alongside real
-    activity - if a shop's real saved/visited count is 0, no fake names
-    are shown at all.
+    Fetches the real users who saved/visited this shop (see
+    db_service.fetch_shop_community), plus the current user prepended if
+    they saved or visited this shop and aren't already in that list.
     """
     shop_id = shop["id"]
-    seed = ord(shop_id[0]) + (ord(shop_id[1]) if len(shop_id) > 1 else 0)
-    count = (seed % 5) + 3
-
-    def generate_fake_users(offset: int) -> list[dict[str, str]]:
-        users = []
-        for i in range(count):
-            name_index = (i + seed + offset) % len(PAKISTANI_FAKE_NAMES)
-            name = PAKISTANI_FAKE_NAMES[name_index]
-            users.append(
-                {
-                    "id": f"fake-{shop_id}-{i}-{offset}-{name_index}",
-                    "username": name,
-                    "avatarUrl": f"https://ui-avatars.com/api/?name={name}&background=random&size=128",
-                }
-            )
-        return users
-
-    real_saved_count = shop.get("savedCount") or 0
-    real_visited_count = shop.get("stampCount") or 0
-
-    savers = generate_fake_users(0) if real_saved_count > 0 else []
-    visitors = generate_fake_users(10) if real_visited_count > 0 else []
+    community = db_service.fetch_shop_community(supabase, shop_id)
+    savers = community["savers"]
+    visitors = community["visitors"]
 
     if user:
-        if shop_id in (user.saved_shops or []):
+        if shop_id in (user.saved_shops or []) and not any(s["id"] == user.id for s in savers):
             savers = [{"id": user.id, "username": user.username, "avatarUrl": user.avatar_url}] + savers
-        if shop_id in (user.visited_shops or []):
+        if shop_id in (user.visited_shops or []) and not any(v["id"] == user.id for v in visitors):
             visitors = [{"id": user.id, "username": user.username, "avatarUrl": user.avatar_url}] + visitors
 
     return {"savers": savers, "visitors": visitors}
@@ -233,7 +209,7 @@ def shop_detail(
     is_owner = bool(user and (shop.get("claimedBy") == user.id or user.is_admin))
     is_claimed_owner = bool(user and shop.get("claimedBy") == user.id and not user.is_admin)
 
-    community = _get_shop_community(shop, user)
+    community = _get_shop_community(shop, user, supabase)
 
     vibe_ratings = shop.get("vibeRatings") or {}
     vibe_score_classes = {
