@@ -2508,14 +2508,20 @@ textarea {
     }
 }
 
+@media (min-width: 1280px) {
+    .badge-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}
+
 .badge-tile {
-    aspect-ratio: 1 / 1;
+    min-height: 140px;
     border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
+    padding: 0.75rem 0.5rem;
     text-align: center;
     border: 2px solid;
 }

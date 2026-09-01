@@ -156,17 +156,19 @@
             <h2>Achievements</h2>
             <span class="mini-tag">Beta</span>
         </div>
-        <div class="card badge-grid">
-            {% for badge in badges %}
-            <div class="badge-tile {{ 'badge-unlocked' if badge.unlocked else 'badge-locked' }}">
-                <div class="badge-icon"><i class="fas fa-{{ badge.icon }}"></i></div>
-                <h3>{{ badge.name }}</h3>
-                <p>{{ badge.desc }}</p>
-                {% if badge.unlocked %}
-                <span class="badge-unlocked-tag">UNLOCKED</span>
-                {% endif %}
+        <div class="card badge-grid-card">
+            <div class="badge-grid">
+                {% for badge in badges %}
+                <div class="badge-tile {{ 'badge-unlocked' if badge.unlocked else 'badge-locked' }}">
+                    <div class="badge-icon"><i class="fas fa-{{ badge.icon }}"></i></div>
+                    <h3>{{ badge.name }}</h3>
+                    <p>{{ badge.desc }}</p>
+                    {% if badge.unlocked %}
+                    <span class="badge-unlocked-tag">UNLOCKED</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </section>
 
