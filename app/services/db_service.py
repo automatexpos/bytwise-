@@ -385,6 +385,8 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
         shops_response = (
             supabase.table("shops")
             .select("*, shop_images(*), reviews(*, profiles(username, avatar_url))")
+            .order("people_say_rating", desc=True)
+            .order("rating", desc=True)
             .order("created_at", desc=True)
             .execute()
         )
