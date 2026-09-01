@@ -24,7 +24,7 @@
                 <button type="button" class="btn btn-primary btn-block" onclick="submitReview('{{ shop.id }}')">
                     Post Review &amp; Stamp
                 </button>
-                <button type="button" class="btn-text-muted" onclick="skipReview('{{ shop.id }}')">
+                <button type="button" id="review-skip-btn" class="btn-text-muted" onclick="skipReview('{{ shop.id }}')">
                     Just Stamp Passport
                 </button>
             </div>
@@ -215,7 +215,7 @@
                 </div>
                 {% if not is_claimed_owner %}
                 {% if user %}
-                <button type="button" class="btn btn-outline btn-block" onclick="openReviewModal()">Write a Review</button>
+                <button type="button" class="btn btn-outline btn-block" onclick="openReviewModal(true)">Write a Review</button>
                 {% else %}
                 <a href="/auth?mode=signup&amp;notice=review&amp;next={{ request.url.path|urlencode }}" class="btn btn-outline btn-block">Write a Review</a>
                 {% endif %}

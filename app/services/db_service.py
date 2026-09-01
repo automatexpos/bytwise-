@@ -19,6 +19,8 @@ from typing import Any, Callable, Optional, TypeVar
 
 from supabase import Client
 
+from app.services import rating_service
+
 T = TypeVar("T")
 
 PEOPLE_SAY_CATEGORIES = (
@@ -793,26 +795,17 @@ def save_people_say_ratings(
             .execute()
         )
         _raise_if_error(ratings_response)
-        all_ratings = ratings_response.data or []
         scores_by_category: dict[str, list[float]] = {}
-        for row in all_ratings:
+        for row in ratings_response.data or []:
             scores_by_category.setdefault(row["category"], []).append(float(row["rating"]))
         aggregates = {
             category: {"average": round(sum(scores) / len(scores), 1), "count": len(scores)}
             for category, scores in scores_by_category.items()
         }
 
-        # Keep shops.people_say_rating/_count in sync in case the DB trigger
-        # from add_shop_category_ratings.sql hasn't been applied.
-        if all_ratings:
-            overall_average = round(sum(float(row["rating"]) for row in all_ratings) / len(all_ratings), 1)
-            update_response = (
-                supabase.table("shops")
-                .update({"people_say_rating": overall_average, "people_say_rating_count": len(all_ratings)})
-                .eq("id", shop_id)
-                .execute()
-            )
-            _raise_if_error(update_response)
+        # Keep shops.people_say_rating/_count in sync at runtime, in case the
+        # DB trigger from add_shop_category_ratings.sql hasn't been applied.
+        rating_service.recalculate_people_say_rating(supabase, shop_id)
 
         return {"success": True, "ratings": aggregates}
     except Exception as error:  # noqa: BLE001
@@ -843,21 +836,7 @@ def add_review(
         _raise_if_error(insert_response)
         inserted_review = insert_response.data
 
-        reviews_response = (
-            supabase.table("reviews").select("rating").eq("shop_id", shop_id).execute()
-        )
-        _raise_if_error(reviews_response)
-        all_reviews = reviews_response.data or []
-
-        if all_reviews:
-            avg_rating = round(sum(r["rating"] for r in all_reviews) / len(all_reviews), 1)
-            update_response = (
-                supabase.table("shops")
-                .update({"rating": avg_rating, "review_count": len(all_reviews)})
-                .eq("id", shop_id)
-                .execute()
-            )
-            _raise_if_error(update_response)
+        rating_service.recalculate_review_rating(supabase, shop_id)
 
         return {"success": True, "review": inserted_review}
     except Exception as error:  # noqa: BLE001

@@ -149,6 +149,34 @@ def visit_shop(
     return {"success": True, "visited": not is_visited}
 
 
+@router.post("/add-review")
+def add_review(
+    payload: dict[str, Any] = Body(...),
+    user: User = Depends(require_user),
+    supabase=Depends(get_request_supabase_client),
+) -> dict[str, Any]:
+    """POST /api/add-review : adds/updates the current user's review for a shop, independent of visited status."""
+    shop_id = str(payload.get("shopId") or "")
+    comment = str(payload.get("comment") or "").strip()
+    if not shop_id or not comment:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="shopId and comment are required.")
+
+    try:
+        rating = float(payload.get("rating") or 5)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="rating must be a number.")
+    if not 1 <= rating <= 5:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="rating must be between 1 and 5.")
+
+    result = db_service.add_review(supabase, shop_id, user.id, rating, comment)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(result.get("error") or "Could not save your review."),
+        )
+    return {"success": True, "review": result.get("review")}
+
+
 @router.post("/follow")
 def follow_user(
     payload: dict[str, Any] = Body(...),

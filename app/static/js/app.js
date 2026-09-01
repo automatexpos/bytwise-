@@ -238,7 +238,7 @@ function handleVisitedClick(shopId, isClaimedOwner) {
     if (isVisited) {
         markVisited(shopId, false);
     } else {
-        openReviewModal();
+        openReviewModal(false);
     }
 }
 
@@ -270,9 +270,13 @@ function markVisited(shopId, visited, rating, comment) {
 }
 
 var _reviewRating = 5;
+var _reviewOnlyMode = false;
 
-function openReviewModal() {
+function openReviewModal(reviewOnly) {
+    _reviewOnlyMode = !!reviewOnly;
     var modal = document.getElementById("review-modal");
+    var skipBtn = document.getElementById("review-skip-btn");
+    if (skipBtn) skipBtn.classList.toggle("hidden", _reviewOnlyMode);
     if (modal) modal.classList.remove("hidden");
 }
 
@@ -291,10 +295,18 @@ function setReviewRating(value) {
 
 function submitReview(shopId) {
     var comment = document.getElementById("review-comment").value;
-    markVisited(shopId, true, _reviewRating, comment)
+    if (!comment.trim()) {
+        toast.error("Please write a comment for your review.");
+        return;
+    }
+    var request = _reviewOnlyMode
+        ? postJson("/api/add-review", { shopId: shopId, rating: _reviewRating, comment: comment })
+        : markVisited(shopId, true, _reviewRating, comment);
+    request
         .then(function () {
             closeReviewModal();
-            toast.success("Passport Stamped & Review Posted!");
+            toast.success(_reviewOnlyMode ? "Review Posted!" : "Passport Stamped & Review Posted!");
+            if (_reviewOnlyMode) window.location.reload();
         })
         .catch(function (error) { toast.error(error.message); });
 }
