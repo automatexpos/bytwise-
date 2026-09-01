@@ -829,12 +829,10 @@ def add_review(
                 {"shop_id": shop_id, "user_id": user_id, "rating": rating, "comment": comment},
                 on_conflict="shop_id,user_id",
             )
-            .select()
-            .single()
             .execute()
         )
         _raise_if_error(insert_response)
-        inserted_review = insert_response.data
+        inserted_review = (insert_response.data or [None])[0]
 
         rating_service.recalculate_review_rating(supabase, shop_id)
 
@@ -931,12 +929,10 @@ def submit_claim_request(supabase: Client, request: dict[str, Any]) -> dict[str,
                     "social_link": request["socialLink"],
                 }
             )
-            .select()
-            .single()
             .execute()
         )
         _raise_if_error(response)
-        return {"success": True, "request": response.data}
+        return {"success": True, "request": (response.data or [None])[0]}
     except Exception as error:  # noqa: BLE001
         print(f"Error submitting claim request: {error}")
         return {"success": False, "error": error}
