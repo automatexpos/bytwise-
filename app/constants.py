@@ -17,16 +17,13 @@ STANDARD_VIBES: Dict[str, List[str]] = {
         "Outdoor Seating",
     ],
     "foodDrink": [
-        "Chai",
+        "Tea",
         "Coffee",
-        "Specialty Coffee",
         "Desi Food",
         "Desserts",
     ],
     "purpose": [
         "Laptop Friendly",
-        "Study Spot",
-        "Date Spot",
         "Family Friendly",
     ],
     "facilities": [
@@ -40,9 +37,7 @@ STANDARD_VIBES: Dict[str, List[str]] = {
 CHEEKY_VIBES_OPTIONS: Dict[str, List[str]] = {
     "social": [
         "Gup Shup",
-        "Girls Night",
         "Family Hangout",
-        "Boys Night",
         "Hidden Gem",
         "Worth The Hype",
     ],
@@ -53,17 +48,12 @@ CHEEKY_VIBES_OPTIONS: Dict[str, List[str]] = {
         "Worth The Splurge",
     ],
     "workStudy": [
-        "WFC, Work From Cafe",
         "Freelancer Friendly",
-        "Study Mode",
         "Deadline Spot",
-        "Coffee & Code",
     ],
     "pakistaniEnergy": [
-        "Parents Approved",
         "Chai Ka Bahana",
         "Bas 10 Minute Aur",
-        "Diet Kal Se",
         "Late Night Cravings",
         "Long Drive Worthy",
     ],
@@ -81,5 +71,6 @@ PARKING_OPTIONS: List[str] = [
     "Nearby Parking",
     "Difficult Parking",
     "No Parking",
+    "Shared Parking",
     "Unknown",
 ]

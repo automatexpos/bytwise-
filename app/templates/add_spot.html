@@ -19,22 +19,22 @@
                 <div class="form-grid form-grid-3">
                     <div class="form-field">
                         <label>Shop Name</label>
-                        <input type="text" name="name" required placeholder="e.g. The Daily Grind"
+                        <input type="text" name="name" required placeholder="e.g. The Last Tribe"
                                value="{{ form_data.get('name', '') }}">
                     </div>
                     <div class="form-field">
                         <label>City</label>
-                        <input type="text" name="city" required placeholder="e.g. Sacramento"
+                        <input type="text" name="city" required placeholder="e.g. Islamabad"
                                value="{{ form_data.get('city', '') }}">
                     </div>
                     <div class="form-field">
                         <label>State / Region</label>
-                        <input type="text" name="state" required placeholder="e.g. California"
+                        <input type="text" name="state" required placeholder="e.g. Islamabad"
                                value="{{ form_data.get('state', '') }}">
                     </div>
                     <div class="form-field">
                         <label>Area / Neighborhood</label>
-                        <input type="text" name="area" placeholder="e.g. DHA Phase 6"
+                        <input type="text" name="area" placeholder="e.g. F-11"
                                value="{{ form_data.get('area', '') }}">
                     </div>
                 </div>
@@ -90,9 +90,9 @@
                 <div class="form-field">
                     <div class="form-field-header">
                         <label>Description</label>
-                        <button type="button" class="link-accent-btn" id="generate-ai-btn" onclick="generateAiDescription()">
+                        <!-- <button type="button" class="link-accent-btn" id="generate-ai-btn" onclick="generateAiDescription()">
                             <i class="fas fa-magic"></i> Generate with AI
-                        </button>
+                        </button> -->
                     </div>
                     <textarea name="description" id="description-input" required rows="4"
                               placeholder="Tell us what makes this place special...">{{ form_data.get('description', '') }}</textarea>

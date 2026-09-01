@@ -102,16 +102,16 @@ class OpenHours(CamelModel):
 class ShopFacilities(CamelModel):
     """Mirrors the anonymous `facilities` object on the Shop interface."""
 
-    has_prayer_area: Optional[bool] = Field(default=None, alias="hasPrayerArea")
-    has_clean_washrooms: Optional[bool] = Field(default=None, alias="hasCleanWashrooms")
-    has_baby_changing: Optional[bool] = Field(default=None, alias="hasBabyChanging")
+    has_prayer_area: Optional[bool] = Field(default=None, alias="PrayerArea")
+    has_clean_washrooms: Optional[bool] = Field(default=None, alias="CleanWashrooms")
+    has_baby_changing: Optional[bool] = Field(default=None, alias="BabyChanging")
     is_wheelchair_accessible: Optional[bool] = Field(
         default=None, alias="isWheelchairAccessible"
     )
-    has_ac: Optional[bool] = Field(default=None, alias="hasAc")
-    has_power_outlets: Optional[bool] = Field(default=None, alias="hasPowerOutlets")
-    has_wifi: Optional[bool] = Field(default=None, alias="hasWifi")
-    is_pet_friendly: Optional[bool] = Field(default=None, alias="isPetFriendly")
+    has_ac: Optional[bool] = Field(default=None, alias="Ac")
+    has_power_outlets: Optional[bool] = Field(default=None, alias="PowerOutlets")
+    has_wifi: Optional[bool] = Field(default=None, alias="Wifi")
+    is_pet_friendly: Optional[bool] = Field(default=None, alias="PetFriendly")
     custom_facilities: Optional[List[str]] = Field(default=None, alias="customFacilities")
 
 
