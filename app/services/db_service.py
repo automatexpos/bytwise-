@@ -15,6 +15,7 @@ change during the TypeScript to Python port.
 import time
 import re
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Any, Callable, Optional, TypeVar
 
 from supabase import Client
@@ -480,7 +481,7 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                         "avatarUrl": avatar_url,
                         "rating": review.get("rating"),
                         "comment": review.get("comment") or "",
-                        "date": review.get("created_at"),
+                        "date": _format_time(review.get("created_at")),
                     }
                 )
 
@@ -1008,6 +1009,17 @@ def approve_claim_request(supabase: Client, request_id: str) -> dict[str, Any]:
 
 
 # ==================== INTERNAL HELPERS ====================
+
+
+def _format_time(iso_timestamp: Optional[str]) -> str:
+    """Formats an ISO timestamp as a simple h:mm AM/PM time string."""
+    if not iso_timestamp:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return iso_timestamp
+    return parsed.strftime("%I:%M %p").lstrip("0")
 
 
 def _raise_if_error(response: Any) -> None:
