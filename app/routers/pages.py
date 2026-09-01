@@ -69,8 +69,6 @@ DAYS_OF_WEEK = [
 ]
 
 PAKISTANI_FAKE_NAMES = [
-    "Ahmed", "Fatima", "Ali", "Ayesha", "Hassan", "Zainab", "Bilal", "Sana",
-    "Usman", "Mariam", "Hamza", "Sara", "Omar", "Hira", "Tariq", "Amna",
 ]
 
 
