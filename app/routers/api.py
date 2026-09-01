@@ -155,9 +155,10 @@ def add_review(
     user: User = Depends(require_user),
     supabase=Depends(get_request_supabase_client),
 ) -> dict[str, Any]:
-    """POST /api/add-review : adds/updates the current user's review for a shop, independent of visited status."""
+    """POST /api/add-review : adds/updates the current user's review for a shop and marks the passport stamped."""
     shop_id = str(payload.get("shopId") or "")
     comment = str(payload.get("comment") or "").strip()
+    stamp_passport = payload.get("stampPassport", True)
     if not shop_id or not comment:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="shopId and comment are required.")
 
@@ -174,7 +175,13 @@ def add_review(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(result.get("error") or "Could not save your review."),
         )
-    return {"success": True, "review": result.get("review")}
+
+    if stamp_passport:
+        visit_result = db_service.mark_shop_visited(supabase, user.id, shop_id)
+        if not visit_result.get("success"):
+            print(f"Warning: review saved but failed to mark visited: {visit_result.get('error')}")
+
+    return {"success": True, "review": result.get("review"), "visited": True}
 
 
 @router.post("/follow")

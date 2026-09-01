@@ -4,14 +4,14 @@
 {% block content %}
 <div class="shop-detail-page" data-shop-id="{{ shop.id }}">
 
-    {# Review Modal, mirrors the "Stamp Your Passport" modal in ShopDetail.tsx #}
+    {# Review Modal for writing a review #}
     <div id="review-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <button type="button" class="modal-close" onclick="closeReviewModal()" aria-label="Cancel review">
                 <i class="fas fa-times"></i>
             </button>
-            <h2>Stamp Your Passport?</h2>
-            <p class="modal-subtitle">Leave a review to document your visit.</p>
+            <h2 id="review-modal-title">Write a Review</h2>
+            <p class="modal-subtitle" id="review-modal-subtitle">Share your experience with the community.</p>
             <div class="star-picker" id="review-star-picker">
                 {% for i in range(1, 6) %}
                 <button type="button" class="star-picker-btn" data-value="{{ i }}" onclick="setReviewRating({{ i }})">
@@ -23,9 +23,6 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-primary btn-block" onclick="submitReview('{{ shop.id }}')">
                     Post Review &amp; Stamp
-                </button>
-                <button type="button" id="review-skip-btn" class="btn-text-muted" onclick="skipReview('{{ shop.id }}')">
-                    Just Stamp Passport
                 </button>
             </div>
         </div>

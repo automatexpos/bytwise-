@@ -19,7 +19,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from supabase import Client
 
-from app.database import decode_jwt_payload, get_supabase_client
+from app.database import _is_jwt_expired, decode_jwt_payload, get_supabase_client
 from app.models import User
 from app.services import db_service
 
@@ -153,7 +153,7 @@ def get_current_user(request: Request) -> Optional[User]:
     whenever `supabase.auth.getSession()` had no session.
     """
     token = get_access_token_from_request(request)
-    if not token:
+    if not token or _is_jwt_expired(token):
         return None
 
     # Reads the user id straight out of the JWT instead of making a remote

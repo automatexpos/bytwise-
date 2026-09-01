@@ -459,11 +459,7 @@ function handleVisitedClick(shopId, isClaimedOwner) {
     }
     var button = document.getElementById("visit-shop-btn");
     var isVisited = button && button.getAttribute("data-visited") === "true";
-    if (isVisited) {
-        markVisited(shopId, false);
-    } else {
-        openReviewModal(false);
-    }
+    markVisited(shopId, !isVisited);
 }
 
 function markVisited(shopId, visited, rating, comment) {
@@ -471,9 +467,12 @@ function markVisited(shopId, visited, rating, comment) {
     if (rating) payload.rating = rating;
     if (comment) payload.comment = comment;
 
+    var button = document.getElementById("visit-shop-btn");
+    if (button) button.disabled = true;
+
     return postJson("/api/visit-shop", payload).then(function (data) {
-        var button = document.getElementById("visit-shop-btn");
         if (button) {
+            button.disabled = false;
             button.setAttribute("data-visited", data.visited ? "true" : "false");
             var icon = button.querySelector("i");
             var label = button.querySelector("span");
@@ -482,25 +481,26 @@ function markVisited(shopId, visited, rating, comment) {
                 button.classList.add("btn-secondary");
                 if (icon) icon.className = "fas fa-check-circle";
                 if (label) label.textContent = "Visited";
+                toast.success("Passport Stamped!");
             } else {
                 button.classList.remove("btn-secondary");
                 button.classList.add("btn-outline");
                 if (icon) icon.className = "fas fa-stamp";
                 if (label) label.textContent = "Stamp My Passport";
+                toast.info("Passport stamp removed.");
             }
         }
         return data;
+    }).catch(function (err) {
+        if (button) button.disabled = false;
+        toast.error(err.message || "Failed to update passport stamp.");
     });
 }
 
 var _reviewRating = 5;
-var _reviewOnlyMode = false;
 
-function openReviewModal(reviewOnly) {
-    _reviewOnlyMode = !!reviewOnly;
+function openReviewModal() {
     var modal = document.getElementById("review-modal");
-    var skipBtn = document.getElementById("review-skip-btn");
-    if (skipBtn) skipBtn.classList.toggle("hidden", _reviewOnlyMode);
     if (modal) modal.classList.remove("hidden");
 }
 
@@ -523,26 +523,24 @@ function submitReview(shopId) {
         toast.error("Please write a comment for your review.");
         return;
     }
-    var request = _reviewOnlyMode
-        ? postJson("/api/add-review", { shopId: shopId, rating: _reviewRating, comment: comment })
-        : markVisited(shopId, true, _reviewRating, comment);
-    request
-        .then(function () {
-            closeReviewModal();
-            toast.success(_reviewOnlyMode ? "Review Posted!" : "Passport Stamped & Review Posted!");
-            window.location.reload();
-        })
-        .catch(function (error) { toast.error(error.message); });
-}
+    var submitBtn = document.querySelector("#review-modal .modal-actions .btn-primary");
+    if (submitBtn) submitBtn.disabled = true;
 
-function skipReview(shopId) {
-    markVisited(shopId, true)
+    postJson("/api/add-review", {
+        shopId: shopId,
+        rating: _reviewRating,
+        comment: comment,
+        stampPassport: true,
+    })
         .then(function () {
             closeReviewModal();
-            toast.success("Passport Stamped!");
+            toast.success("Passport Stamped & Review Posted!");
             window.location.reload();
         })
-        .catch(function (error) { toast.error(error.message); });
+        .catch(function (error) {
+            if (submitBtn) submitBtn.disabled = false;
+            toast.error(error.message);
+        });
 }
 
 function voteOnVibe(shopId, vibe, vote, button) {

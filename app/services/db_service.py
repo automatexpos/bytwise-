@@ -902,6 +902,23 @@ def toggle_saved_shop(supabase: Client, user_id: str, shop_id: str, is_saved: bo
 # ==================== VISITED SHOPS ====================
 
 
+def mark_shop_visited(
+    supabase: Client, user_id: str, shop_id: str
+) -> dict[str, Any]:
+    """Ensures a shop is marked as visited (stamped) for a user."""
+    try:
+        response = (
+            supabase.table("visited_shops")
+            .upsert({"user_id": user_id, "shop_id": shop_id}, on_conflict="user_id,shop_id")
+            .execute()
+        )
+        _raise_if_error(response)
+        return {"success": True}
+    except Exception as error:  # noqa: BLE001
+        print(f"Error marking shop visited: {error}")
+        return {"success": False, "error": error}
+
+
 def toggle_visited_shop(
     supabase: Client, user_id: str, shop_id: str, is_visited: bool
 ) -> dict[str, Any]:
