@@ -129,6 +129,20 @@ def _calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -
     return earth_radius_km * c
 
 
+def _parse_optional_float(val: Any) -> Optional[float]:
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    val_str = str(val).strip()
+    if not val_str:
+        return None
+    try:
+        return float(val_str)
+    except (ValueError, TypeError):
+        return None
+
+
 def _load_claim_requests_for(user: Optional[User], supabase) -> list[dict[str, Any]]:
     """Loads claim requests only when the user is an admin or business owner,
     mirroring loadUserProfile's conditional fetch in AppContext.tsx."""
@@ -146,15 +160,20 @@ def home(
     q: str = "",
     vibe: Optional[list[str]] = Query(default=None),
     city: str = "",
-    min_rating: Optional[float] = None,
-    radius: Optional[float] = None,
-    user_lat: Optional[float] = None,
-    user_lng: Optional[float] = None,
+    min_rating: Optional[str] = None,
+    radius: Optional[str] = None,
+    user_lat: Optional[str] = None,
+    user_lng: Optional[str] = None,
     user: Optional[User] = Depends(get_current_user),
     supabase=Depends(get_request_supabase_client),
 ) -> HTMLResponse:
     """GET / : shop list plus map with rating, city, and radius filters."""
     selected_vibes = vibe or []
+    min_rating_val = _parse_optional_float(min_rating)
+    radius_val = _parse_optional_float(radius)
+    user_lat_val = _parse_optional_float(user_lat)
+    user_lng_val = _parse_optional_float(user_lng)
+
     try:
         shops = db_service.fetch_shops(supabase)
     except Exception:
@@ -191,29 +210,29 @@ def home(
             shop_city = (shop.get("location", {}).get("city") or "").strip()
             if shop_city.lower() != selected_city.lower():
                 return False
-        if min_rating is not None and min_rating > 0:
+        if min_rating_val is not None and min_rating_val > 0:
             shop_rating = float(shop.get("peopleSayRating") or shop.get("rating") or 0)
-            if shop_rating < min_rating:
+            if shop_rating < min_rating_val:
                 return False
-        if radius is not None and radius > 0 and user_lat is not None and user_lng is not None:
+        if radius_val is not None and radius_val > 0 and user_lat_val is not None and user_lng_val is not None:
             shop_lat = float(shop.get("location", {}).get("lat") or 0)
             shop_lng = float(shop.get("location", {}).get("lng") or 0)
             if shop_lat == 0 and shop_lng == 0:
                 return False
-            dist = _calculate_distance_km(user_lat, user_lng, shop_lat, shop_lng)
+            dist = _calculate_distance_km(user_lat_val, user_lng_val, shop_lat, shop_lng)
             shop["distance"] = round(dist, 1)
-            if dist > radius:
+            if dist > radius_val:
                 return False
-        elif user_lat is not None and user_lng is not None:
+        elif user_lat_val is not None and user_lng_val is not None:
             shop_lat = float(shop.get("location", {}).get("lat") or 0)
             shop_lng = float(shop.get("location", {}).get("lng") or 0)
             if shop_lat != 0 or shop_lng != 0:
-                dist = _calculate_distance_km(user_lat, user_lng, shop_lat, shop_lng)
+                dist = _calculate_distance_km(user_lat_val, user_lng_val, shop_lat, shop_lng)
                 shop["distance"] = round(dist, 1)
         return True
 
     filtered_shops = [shop for shop in shops if matches(shop)]
-    if radius is not None and radius > 0 and user_lat is not None and user_lng is not None:
+    if radius_val is not None and radius_val > 0 and user_lat_val is not None and user_lng_val is not None:
         filtered_shops.sort(key=lambda s: s.get("distance", float("inf")))
 
     return templates.TemplateResponse(
@@ -224,10 +243,10 @@ def home(
             "shops": filtered_shops,
             "cities": cities,
             "selected_city": selected_city,
-            "selected_min_rating": min_rating,
-            "selected_radius": radius,
-            "user_lat": user_lat,
-            "user_lng": user_lng,
+            "selected_min_rating": min_rating_val,
+            "selected_radius": radius_val,
+            "user_lat": user_lat_val,
+            "user_lng": user_lng_val,
             "search_query": q,
             "selected_vibes": selected_vibes,
             "standard_vibe_options": [v for group in STANDARD_VIBES.values() for v in group],
