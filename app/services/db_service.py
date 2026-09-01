@@ -793,13 +793,27 @@ def save_people_say_ratings(
             .execute()
         )
         _raise_if_error(ratings_response)
+        all_ratings = ratings_response.data or []
         scores_by_category: dict[str, list[float]] = {}
-        for row in ratings_response.data or []:
+        for row in all_ratings:
             scores_by_category.setdefault(row["category"], []).append(float(row["rating"]))
         aggregates = {
             category: {"average": round(sum(scores) / len(scores), 1), "count": len(scores)}
             for category, scores in scores_by_category.items()
         }
+
+        # Keep shops.people_say_rating/_count in sync in case the DB trigger
+        # from add_shop_category_ratings.sql hasn't been applied.
+        if all_ratings:
+            overall_average = round(sum(float(row["rating"]) for row in all_ratings) / len(all_ratings), 1)
+            update_response = (
+                supabase.table("shops")
+                .update({"people_say_rating": overall_average, "people_say_rating_count": len(all_ratings)})
+                .eq("id", shop_id)
+                .execute()
+            )
+            _raise_if_error(update_response)
+
         return {"success": True, "ratings": aggregates}
     except Exception as error:  # noqa: BLE001
         print(f"Error saving category ratings: {error}")
@@ -818,7 +832,10 @@ def add_review(
     try:
         insert_response = (
             supabase.table("reviews")
-            .insert({"shop_id": shop_id, "user_id": user_id, "rating": rating, "comment": comment})
+            .upsert(
+                {"shop_id": shop_id, "user_id": user_id, "rating": rating, "comment": comment},
+                on_conflict="shop_id,user_id",
+            )
             .select()
             .single()
             .execute()
@@ -833,7 +850,7 @@ def add_review(
         all_reviews = reviews_response.data or []
 
         if all_reviews:
-            avg_rating = sum(r["rating"] for r in all_reviews) / len(all_reviews)
+            avg_rating = round(sum(r["rating"] for r in all_reviews) / len(all_reviews), 1)
             update_response = (
                 supabase.table("shops")
                 .update({"rating": avg_rating, "review_count": len(all_reviews)})

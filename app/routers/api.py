@@ -139,7 +139,12 @@ def visit_shop(
     review_rating = payload.get("rating")
     review_comment = payload.get("comment")
     if not is_visited and review_comment:
-        db_service.add_review(supabase, shop_id, user.id, float(review_rating or 5), str(review_comment))
+        review_result = db_service.add_review(supabase, shop_id, user.id, float(review_rating or 5), str(review_comment))
+        if not review_result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(review_result.get("error") or "Could not save your review."),
+            )
 
     return {"success": True, "visited": not is_visited}
 
