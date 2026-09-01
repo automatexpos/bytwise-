@@ -287,7 +287,7 @@
                     <a href="/auth?next={{ request.url.path|urlencode }}" class="btn btn-outline btn-block"><i class="far fa-heart"></i> Save Spot</a>
                     {% endif %}
 
-                    <a href="{% if shop.location.address.startswith('http') %}{{ shop.location.address }}{% else %}https://www.google.com/maps/search/?api=1&query={{ (shop.name ~ ', ' ~ shop.location.address ~ ', ' ~ shop.location.city)|urlencode }}{% endif %}"
+                          <a href="https://www.google.com/maps/dir/?api=1&amp;destination={{ shop.location.lat }},{{ shop.location.lng }}"
                        target="_blank" rel="noreferrer" class="btn btn-dark btn-block">
                         <i class="fas fa-location-arrow"></i> Get Directions
                     </a>
