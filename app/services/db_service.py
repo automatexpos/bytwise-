@@ -826,7 +826,7 @@ def add_review(
         insert_response = (
             supabase.table("reviews")
             .upsert(
-                {"shop_id": shop_id, "user_id": user_id, "rating": rating, "comment": comment},
+                {"shop_id": shop_id, "user_id": user_id, "rating": int(round(rating)), "comment": comment},
                 on_conflict="shop_id,user_id",
             )
             .execute()
