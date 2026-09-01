@@ -528,6 +528,7 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                     "isClaimed": shop.get("is_claimed"),
                     "claimedBy": shop.get("claimed_by"),
                     "stampCount": shop.get("stamp_count") or 0,
+                    "savedCount": shop.get("saved_count") or 0,
                     "openHours": shop.get("open_hours"),
                     "parking": shop.get("parking"),
                     "facilities": shop.get("facilities"),

@@ -100,12 +100,15 @@ def _get_vibe_score_class(score: int) -> str:
     return "score-bad"
 
 
-def _get_shop_community(shops: list[dict[str, Any]], shop_id: str, user: Optional[User]) -> dict[str, Any]:
+def _get_shop_community(shop: dict[str, Any], user: Optional[User]) -> dict[str, Any]:
     """
     Reproduces AppContext.tsx's getShopCommunity: deterministic fake users
     based on the shop id, plus the current user prepended if they saved or
-    visited this shop.
+    visited this shop. Fake users are only added as filler alongside real
+    activity - if a shop's real saved/visited count is 0, no fake names
+    are shown at all.
     """
+    shop_id = shop["id"]
     seed = ord(shop_id[0]) + (ord(shop_id[1]) if len(shop_id) > 1 else 0)
     count = (seed % 5) + 3
 
@@ -123,8 +126,11 @@ def _get_shop_community(shops: list[dict[str, Any]], shop_id: str, user: Optiona
             )
         return users
 
-    savers = generate_fake_users(0)
-    visitors = generate_fake_users(10)
+    real_saved_count = shop.get("savedCount") or 0
+    real_visited_count = shop.get("stampCount") or 0
+
+    savers = generate_fake_users(0) if real_saved_count > 0 else []
+    visitors = generate_fake_users(10) if real_visited_count > 0 else []
 
     if user:
         if shop_id in (user.saved_shops or []):
@@ -229,7 +235,7 @@ def shop_detail(
     is_owner = bool(user and (shop.get("claimedBy") == user.id or user.is_admin))
     is_claimed_owner = bool(user and shop.get("claimedBy") == user.id and not user.is_admin)
 
-    community = _get_shop_community(shops, shop_id, user)
+    community = _get_shop_community(shop, user)
 
     vibe_ratings = shop.get("vibeRatings") or {}
     vibe_score_classes = {

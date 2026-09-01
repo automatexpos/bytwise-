@@ -306,7 +306,7 @@ function submitReview(shopId) {
         .then(function () {
             closeReviewModal();
             toast.success(_reviewOnlyMode ? "Review Posted!" : "Passport Stamped & Review Posted!");
-            if (_reviewOnlyMode) window.location.reload();
+            window.location.reload();
         })
         .catch(function (error) { toast.error(error.message); });
 }
@@ -316,6 +316,7 @@ function skipReview(shopId) {
         .then(function () {
             closeReviewModal();
             toast.success("Passport Stamped!");
+            window.location.reload();
         })
         .catch(function (error) { toast.error(error.message); });
 }

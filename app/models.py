@@ -134,6 +134,7 @@ class Shop(CamelModel):
     is_claimed: bool = Field(alias="isClaimed")
     claimed_by: Optional[str] = Field(default=None, alias="claimedBy")
     stamp_count: int = Field(alias="stampCount")
+    saved_count: int = Field(default=0, alias="savedCount")
     open_hours: Optional[OpenHours] = Field(default=None, alias="openHours")
     parking: Optional[str] = None
     facilities: Optional[ShopFacilities] = None
