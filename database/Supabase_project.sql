@@ -148,7 +148,7 @@ BEGIN
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'username', SPLIT_PART(NEW.email, '@', 1)),
     NEW.email,
-    'https://ui-avatars.com/api/?name=' || COALESCE(NEW.raw_user_meta_data->>'username', SPLIT_PART(NEW.email, '@', 1)) || '&background=231b15&color=4682b4'
+    'https://ui-avatars.com/api/?name=' || COALESCE(NEW.raw_user_meta_data->>'username', SPLIT_PART(NEW.email, '@', 1)) || '&background=231b15&color=F08000'
   );
   RETURN NEW;
 EXCEPTION

@@ -297,7 +297,7 @@ def create_user_profile(
 
         avatar_url = (
             "https://ui-avatars.com/api/?name="
-            f"{urllib.parse.quote(safe_username)}&background=231b15&color=4682b4"
+            f"{urllib.parse.quote(safe_username)}&background=231b15&color=F08000"
         )
 
         response = (

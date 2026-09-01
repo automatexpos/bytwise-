@@ -152,7 +152,7 @@ function renderShopMarkers(shops) {
             '<h3 style="margin:0 0 0.25rem;font-weight:700;">' + escapeHtml(shop.name) + "</h3>" +
             '<p style="margin:0 0 0.5rem;font-size:0.8rem;color:#8a7666;">' + escapeHtml(shop.location.city) + "</p>" +
             '<a href="' + mapsUrl + '" target="_blank" rel="noreferrer" ' +
-            'style="font-size:0.75rem;font-weight:700;background:#4682b4;padding:0.4rem 0.7rem;border-radius:8px;display:inline-block;">' +
+            'style="font-size:0.75rem;font-weight:700;background:#F08000;padding:0.4rem 0.7rem;border-radius:8px;display:inline-block;">' +
             '<i class="fas fa-location-dot"></i> Location</a>' +
             "</div>" +
             "</div>";

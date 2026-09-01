@@ -7,7 +7,7 @@
     <div class="card profile-header-card">
         <div class="profile-avatar-wrap">
             <img src="{{ viewed_user.avatarUrl }}" alt="{{ viewed_user.username }}" class="profile-avatar" id="profile-avatar-preview"
-                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ viewed_user.username|urlencode }}&background=231b15&color=4682b4';">
+                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ viewed_user.username|urlencode }}&background=231b15&color=F08000';">
             {% if is_own_profile %}
             <button type="button" class="profile-avatar-edit-btn hidden" id="avatar-edit-btn"
                     onclick="document.getElementById('avatar-file-input').click()">

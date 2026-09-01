@@ -30,7 +30,7 @@
                     </a>
                     <a href="/profile" class="navbar-avatar">
                         <img src="{{ user.avatar_url }}" alt="{{ user.username }}"
-                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=231b15&color=4682b4';">
+                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=231b15&color=F08000';">
                     </a>
                 {% else %}
                     <a href="/auth?next={{ request.url.path|urlencode }}" class="btn btn-primary btn-sm">Login</a>
