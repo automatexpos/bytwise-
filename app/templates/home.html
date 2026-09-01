@@ -58,23 +58,27 @@
             {% set chip_class = "tag-chip-scroll" %}
             {% include "components/tag_chip_list.html" with context %}
 
-            <div class="filter-summary-row" id="filter-summary-row" style="display: none;">
-                <span id="filter-count-label" class="filter-count-label"></span>
-                <a href="/" class="filter-reset-link" id="filter-reset-link" onclick="resetAllFilters(event)"><i class="fas fa-rotate-left"></i> Reset Filters</a>
+            {% set is_filtered = (search_query or selected_city or selected_min_rating or selected_radius or selected_vibes) %}
+            <div class="filter-summary-row" id="filter-summary-row" {% if not is_filtered %}style="display: none;"{% endif %}>
+                <span id="filter-count-label" class="filter-count-label">
+                    {{ shops|length }} spot{{ 's' if shops|length != 1 else '' }} found{% if selected_radius %} within {{ selected_radius }} km{% endif %}
+                </span>
+                <a href="/" class="filter-reset-link" id="filter-reset-link"><i class="fas fa-rotate-left"></i> Reset Filters</a>
             </div>
 
             <noscript><button type="submit" class="btn btn-primary btn-sm">Filter</button></noscript>
         </form>
 
         <div class="home-shop-list" id="home-shop-list">
-            <div class="empty-state" id="home-empty-state" {% if shops|length > 0 %}style="display: none;"{% endif %}>
+            {% if shops|length == 0 %}
+            <div class="empty-state" id="home-empty-state">
                 <i class="fas fa-globe-americas"></i>
                 <p id="empty-state-message">No spots found matching your filters.</p>
-                <a href="/" class="link-accent" onclick="resetAllFilters(event)">Clear Filters</a>
+                <a href="/" class="link-accent">Clear Filters</a>
             </div>
-            {% for shop in (all_shops if all_shops else shops) %}
-            <a href="/shop/{{ shop.id }}" class="shop-card" data-shop-id="{{ shop.id }}"
-               {% if shop not in shops %}style="display: none;"{% endif %}>
+            {% else %}
+            {% for shop in shops %}
+            <a href="/shop/{{ shop.id }}" class="shop-card" data-shop-id="{{ shop.id }}">
                 <div class="shop-card-image-wrap">
                     <img src="{{ shop.gallery[0].url if shop.gallery else '' }}" alt="{{ shop.name }}">
                     {% if shop.isClaimed %}
@@ -86,9 +90,11 @@
                         <h3>{{ shop.name }}</h3>
                         <div class="shop-card-pills">
                             <span class="pill-city">{{ shop.location.city }}</span>
-                            <span class="pill-distance {% if not shop.distance %}hidden{% endif %}">
-                                <i class="fas fa-location-dot"></i> <span class="distance-val">{{ (shop.distance ~ ' km') if shop.distance else '' }}</span>
+                            {% if shop.distance %}
+                            <span class="pill-distance">
+                                <i class="fas fa-location-dot"></i> <span class="distance-val">{{ "%.1f"|format(shop.distance) }} km</span>
                             </span>
+                            {% endif %}
                         </div>
                     </div>
                     <p class="shop-card-rating"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.peopleSayRating) }} ({{ shop.peopleSayRatingCount }})</p>
@@ -105,6 +111,7 @@
                 </div>
             </a>
             {% endfor %}
+            {% endif %}
         </div>
     </div>
 
@@ -131,7 +138,7 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        initShopsMap('map', {{ (all_shops if all_shops else shops)|tojson }}, {
+        initShopsMap('map', {{ shops|tojson }}, {
             selectedCity: {{ selected_city|tojson }},
             minRating: {{ (selected_min_rating|string if selected_min_rating is not none else '')|tojson }},
             radius: {{ (selected_radius|string if selected_radius is not none else '')|tojson }},

@@ -222,7 +222,6 @@ def home(
         {
             "user": user,
             "shops": filtered_shops,
-            "all_shops": shops,
             "cities": cities,
             "selected_city": selected_city,
             "selected_min_rating": min_rating,
