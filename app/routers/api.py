@@ -139,7 +139,7 @@ def visit_shop(
     review_rating = payload.get("rating")
     review_comment = payload.get("comment")
     if not is_visited and review_comment:
-        review_result = db_service.add_review(supabase, shop_id, user.id, float(review_rating or 5), str(review_comment))
+        review_result = db_service.add_review(supabase, shop_id, user.id, int(round(float(review_rating or 5))), str(review_comment))
         if not review_result.get("success"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -162,7 +162,7 @@ def add_review(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="shopId and comment are required.")
 
     try:
-        rating = float(payload.get("rating") or 5)
+        rating = int(round(float(payload.get("rating") or 5)))
     except (TypeError, ValueError):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="rating must be a number.")
     if not 1 <= rating <= 5:

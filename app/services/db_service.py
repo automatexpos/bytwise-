@@ -814,7 +814,7 @@ def save_people_say_ratings(
 
 
 def add_review(
-    supabase: Client, shop_id: str, user_id: str, rating: float, comment: str
+    supabase: Client, shop_id: str, user_id: str, rating: int, comment: str
 ) -> dict[str, Any]:
     """
     Adds a review for a shop, then recalculates and stores the shop's
