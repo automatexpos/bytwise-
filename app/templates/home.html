@@ -4,30 +4,77 @@
 {% block content %}
 <div class="home-layout">
     <div class="home-sidebar" id="home-sidebar">
-        <form class="home-search-form" method="get" action="/">
+        <form class="home-search-form" method="get" action="/" id="home-filter-form">
             <div class="search-input-wrap">
                 <i class="fas fa-search"></i>
-                <input type="text" name="q" placeholder="Search city (e.g. London), shop, or matcha..."
+                <input type="text" name="q" id="search-input" placeholder="Search city, shop, or matcha..."
                        value="{{ search_query }}">
             </div>
+
+            <div class="home-filter-controls">
+                <div class="filter-group">
+                    <label for="city-filter" class="filter-label"><i class="fas fa-city"></i> City</label>
+                    <select name="city" id="city-filter" class="filter-select">
+                        <option value="">All Cities</option>
+                        {% for c in cities %}
+                        <option value="{{ c }}" {% if selected_city == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="rating-filter" class="filter-label"><i class="fas fa-star"></i> Rating</label>
+                    <select name="min_rating" id="rating-filter" class="filter-select">
+                        <option value="">All Ratings</option>
+                        <option value="5" {% if selected_min_rating == 5 %}selected{% endif %}>5 Stars (Top)</option>
+                        <option value="4" {% if selected_min_rating == 4 %}selected{% endif %}>4+ Stars</option>
+                        <option value="3" {% if selected_min_rating == 3 %}selected{% endif %}>3+ Stars</option>
+                        <option value="2" {% if selected_min_rating == 2 %}selected{% endif %}>2+ Stars</option>
+                        <option value="1" {% if selected_min_rating == 1 %}selected{% endif %}>1+ Star</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="radius-filter" class="filter-label"><i class="fas fa-crosshairs"></i> Radius</label>
+                    <select name="radius" id="radius-filter" class="filter-select">
+                        <option value="">Any Distance</option>
+                        <option value="1" {% if selected_radius == 1 %}selected{% endif %}>Within 1 km</option>
+                        <option value="3" {% if selected_radius == 3 %}selected{% endif %}>Within 3 km</option>
+                        <option value="5" {% if selected_radius == 5 %}selected{% endif %}>Within 5 km</option>
+                        <option value="10" {% if selected_radius == 10 %}selected{% endif %}>Within 10 km</option>
+                        <option value="15" {% if selected_radius == 15 %}selected{% endif %}>Within 15 km</option>
+                        <option value="25" {% if selected_radius == 25 %}selected{% endif %}>Within 25 km</option>
+                        <option value="50" {% if selected_radius == 50 %}selected{% endif %}>Within 50 km</option>
+                    </select>
+                </div>
+            </div>
+
+            <input type="hidden" name="user_lat" id="user-lat-input" value="{{ user_lat if user_lat is not none else '' }}">
+            <input type="hidden" name="user_lng" id="user-lng-input" value="{{ user_lng if user_lng is not none else '' }}">
+
             {% set field_name = "vibe" %}
             {% set options = standard_vibe_options %}
             {% set selected = selected_vibes %}
             {% set chip_class = "tag-chip-scroll" %}
             {% include "components/tag_chip_list.html" with context %}
+
+            <div class="filter-summary-row" id="filter-summary-row" style="display: none;">
+                <span id="filter-count-label" class="filter-count-label"></span>
+                <a href="/" class="filter-reset-link" id="filter-reset-link" onclick="resetAllFilters(event)"><i class="fas fa-rotate-left"></i> Reset Filters</a>
+            </div>
+
             <noscript><button type="submit" class="btn btn-primary btn-sm">Filter</button></noscript>
         </form>
 
-        <div class="home-shop-list">
-            {% if shops|length == 0 %}
-            <div class="empty-state">
+        <div class="home-shop-list" id="home-shop-list">
+            <div class="empty-state" id="home-empty-state" {% if shops|length > 0 %}style="display: none;"{% endif %}>
                 <i class="fas fa-globe-americas"></i>
-                <p>No spots found in this area.</p>
-                <a href="/" class="link-accent">Clear Search</a>
+                <p id="empty-state-message">No spots found matching your filters.</p>
+                <a href="/" class="link-accent" onclick="resetAllFilters(event)">Clear Filters</a>
             </div>
-            {% else %}
-            {% for shop in shops %}
-            <a href="/shop/{{ shop.id }}" class="shop-card">
+            {% for shop in (all_shops if all_shops else shops) %}
+            <a href="/shop/{{ shop.id }}" class="shop-card" data-shop-id="{{ shop.id }}"
+               {% if shop not in shops %}style="display: none;"{% endif %}>
                 <div class="shop-card-image-wrap">
                     <img src="{{ shop.gallery[0].url if shop.gallery else '' }}" alt="{{ shop.name }}">
                     {% if shop.isClaimed %}
@@ -37,7 +84,12 @@
                 <div class="shop-card-body">
                     <div class="shop-card-header">
                         <h3>{{ shop.name }}</h3>
-                        <span class="pill-city">{{ shop.location.city }}</span>
+                        <div class="shop-card-pills">
+                            <span class="pill-city">{{ shop.location.city }}</span>
+                            <span class="pill-distance {% if not shop.distance %}hidden{% endif %}">
+                                <i class="fas fa-location-dot"></i> <span class="distance-val">{{ (shop.distance ~ ' km') if shop.distance else '' }}</span>
+                            </span>
+                        </div>
                     </div>
                     <p class="shop-card-rating"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.peopleSayRating) }} ({{ shop.peopleSayRatingCount }})</p>
                     <a class="btn btn-location btn-xs"
@@ -53,16 +105,15 @@
                 </div>
             </a>
             {% endfor %}
-            {% endif %}
         </div>
     </div>
 
     <div class="home-map-section" id="home-map-section">
         <div class="home-map-search-mobile">
-            <form method="get" action="/">
+            <div class="search-input-wrap">
                 <i class="fas fa-search"></i>
-                <input type="text" name="q" placeholder="Search map..." value="{{ search_query }}">
-            </form>
+                <input type="text" id="map-search-input" placeholder="Search map..." value="{{ search_query }}">
+            </div>
         </div>
         <div id="map" class="map-container" data-onclick-base="/shop/"></div>
         <button id="locate-me-btn" class="map-locate-btn" title="Find my location">
@@ -80,12 +131,12 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        initShopsMap('map', {{ shops|tojson }});
-
-        document.querySelectorAll('.home-search-form input[name="vibe"]').forEach(function (checkbox) {
-            checkbox.addEventListener('change', function () {
-                checkbox.form.submit();
-            });
+        initShopsMap('map', {{ (all_shops if all_shops else shops)|tojson }}, {
+            selectedCity: {{ selected_city|tojson }},
+            minRating: {{ (selected_min_rating|string if selected_min_rating is not none else '')|tojson }},
+            radius: {{ (selected_radius|string if selected_radius is not none else '')|tojson }},
+            userLat: {{ (user_lat|string if user_lat is not none else '')|tojson }},
+            userLng: {{ (user_lng|string if user_lng is not none else '')|tojson }}
         });
     });
 </script>

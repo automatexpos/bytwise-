@@ -10,6 +10,7 @@ here at the route layer since there is no client side context in a
 server rendered app.
 """
 
+import math
 from pathlib import Path
 from typing import Any, Optional
 
@@ -115,6 +116,19 @@ def _get_shop_community(shop: dict[str, Any], user: Optional[User], supabase) ->
     return {"savers": savers, "visitors": visitors}
 
 
+def _calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Haversine distance in kilometers between two lat/lng points."""
+    earth_radius_km = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_lat / 2.0) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2.0) ** 2
+    )
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return earth_radius_km * c
+
+
 def _load_claim_requests_for(user: Optional[User], supabase) -> list[dict[str, Any]]:
     """Loads claim requests only when the user is an admin or business owner,
     mirroring loadUserProfile's conditional fetch in AppContext.tsx."""
@@ -131,17 +145,31 @@ def home(
     request: Request,
     q: str = "",
     vibe: Optional[list[str]] = Query(default=None),
+    city: str = "",
+    min_rating: Optional[float] = None,
+    radius: Optional[float] = None,
+    user_lat: Optional[float] = None,
+    user_lng: Optional[float] = None,
     user: Optional[User] = Depends(get_current_user),
     supabase=Depends(get_request_supabase_client),
 ) -> HTMLResponse:
-    """GET / : shop list plus map, matches Home.tsx."""
+    """GET / : shop list plus map with rating, city, and radius filters."""
     selected_vibes = vibe or []
     try:
         shops = db_service.fetch_shops(supabase)
     except Exception:
         shops = []
 
+    cities = sorted(
+        {
+            shop.get("location", {}).get("city", "").strip()
+            for shop in shops
+            if shop.get("location", {}).get("city", "").strip()
+        }
+    )
+
     query = q.lower().strip()
+    selected_city = city.strip()
 
     def matches(shop: dict[str, Any]) -> bool:
         if query:
@@ -159,9 +187,34 @@ def home(
             shop_vibes = shop.get("vibes", [])
             if not all(v in shop_vibes for v in selected_vibes):
                 return False
+        if selected_city:
+            shop_city = (shop.get("location", {}).get("city") or "").strip()
+            if shop_city.lower() != selected_city.lower():
+                return False
+        if min_rating is not None and min_rating > 0:
+            shop_rating = float(shop.get("peopleSayRating") or shop.get("rating") or 0)
+            if shop_rating < min_rating:
+                return False
+        if radius is not None and radius > 0 and user_lat is not None and user_lng is not None:
+            shop_lat = float(shop.get("location", {}).get("lat") or 0)
+            shop_lng = float(shop.get("location", {}).get("lng") or 0)
+            if shop_lat == 0 and shop_lng == 0:
+                return False
+            dist = _calculate_distance_km(user_lat, user_lng, shop_lat, shop_lng)
+            shop["distance"] = round(dist, 1)
+            if dist > radius:
+                return False
+        elif user_lat is not None and user_lng is not None:
+            shop_lat = float(shop.get("location", {}).get("lat") or 0)
+            shop_lng = float(shop.get("location", {}).get("lng") or 0)
+            if shop_lat != 0 or shop_lng != 0:
+                dist = _calculate_distance_km(user_lat, user_lng, shop_lat, shop_lng)
+                shop["distance"] = round(dist, 1)
         return True
 
     filtered_shops = [shop for shop in shops if matches(shop)]
+    if radius is not None and radius > 0 and user_lat is not None and user_lng is not None:
+        filtered_shops.sort(key=lambda s: s.get("distance", float("inf")))
 
     return templates.TemplateResponse(
         request,
@@ -169,6 +222,13 @@ def home(
         {
             "user": user,
             "shops": filtered_shops,
+            "all_shops": shops,
+            "cities": cities,
+            "selected_city": selected_city,
+            "selected_min_rating": min_rating,
+            "selected_radius": radius,
+            "user_lat": user_lat,
+            "user_lng": user_lng,
             "search_query": q,
             "selected_vibes": selected_vibes,
             "standard_vibe_options": [v for group in STANDARD_VIBES.values() for v in group],
