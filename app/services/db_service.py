@@ -496,6 +496,8 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                 }
                 for category, scores in people_say_by_shop.get(shop["id"], {}).items()
             }
+            people_say_rating = float(shop.get("people_say_rating") or 0)
+            people_say_rating_count = int(shop.get("people_say_rating_count") or 0)
 
             results.append(
                 {
@@ -514,6 +516,8 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                     "vibes": shop.get("vibes") or [],
                     "vibeRatings": vibe_ratings_by_shop.get(shop["id"], {}),
                     "peopleSayRatings": category_averages,
+                    "peopleSayRating": people_say_rating,
+                    "peopleSayRatingCount": people_say_rating_count,
                     "cheekyVibes": shop.get("cheeky_vibes") or [],
                     "rating": float(shop.get("rating") or 0),
                     "reviewCount": shop.get("review_count") or 0,

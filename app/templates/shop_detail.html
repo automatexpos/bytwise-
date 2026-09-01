@@ -55,7 +55,7 @@
                 {% if shop.isClaimed %}
                 <span class="badge badge-verified"><i class="fas fa-certificate"></i> VERIFIED</span>
                 {% endif %}
-                <span class="badge badge-dark"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.rating) }} ({{ shop.reviewCount }})</span>
+                <span class="badge badge-dark"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.peopleSayRating) }} ({{ shop.peopleSayRatingCount }})</span>
                 <span class="badge badge-dark"><i class="fas fa-stamp"></i> {{ shop.stampCount }} Passports Stamped</span>
             </div>
             <h1>{{ shop.name }}</h1>

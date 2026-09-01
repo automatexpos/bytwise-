@@ -33,13 +33,13 @@
                     {% if shop.isClaimed %}
                     <span class="badge badge-claimed"><i class="fas fa-check-circle"></i> CLAIMED</span>
                     {% endif %}
-                    <span class="badge badge-rating"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.rating) }}</span>
                 </div>
                 <div class="shop-card-body">
                     <div class="shop-card-header">
                         <h3>{{ shop.name }}</h3>
                         <span class="pill-city">{{ shop.location.city }}</span>
                     </div>
+                    <p class="shop-card-rating"><i class="fas fa-star"></i> {{ "%.1f"|format(shop.peopleSayRating) }} ({{ shop.peopleSayRatingCount }})</p>
                     <a class="btn btn-location btn-xs"
                        href="{% if shop.location.address.startswith('http') %}{{ shop.location.address }}{% else %}https://www.google.com/maps/search/?api=1&query={{ (shop.name ~ ', ' ~ shop.location.address ~ ', ' ~ shop.location.city)|urlencode }}{% endif %}"
                        target="_blank" rel="noreferrer" onclick="event.stopPropagation()">
