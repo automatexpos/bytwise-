@@ -689,9 +689,61 @@ async def edit_shop_submit(
     facilities = {key: (form.get(key) == "on") for key, _ in FACILITY_FIELDS}
     custom_facility_list = [f for f in form.getlist("custom_facilities") if f]
 
+    # Photo management is available to both the full editor and claimed
+    # owners, so new uploads/removals are handled once, before branching.
+    new_images = [f for f in form.getlist("images") if _is_uploaded_file(f) and f.filename]
+    kept_urls = set(form.getlist("kept_images"))
+
+    existing_gallery = shop.get("gallery") or []
+    kept_gallery = [img for img in existing_gallery if img.get("url") in kept_urls]
+    removed_images = [img for img in existing_gallery if img.get("url") not in kept_urls]
+
+    def render_photo_error(message: str) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "edit_shop.html",
+            {
+                "user": user,
+                "shop": shop,
+                "is_claimed_owner": is_claimed_owner,
+                "standard_vibes": STANDARD_VIBES,
+                "cheeky_vibes_options": CHEEKY_VIBES_OPTIONS,
+                "parking_options": PARKING_OPTIONS,
+                "facility_fields": FACILITY_FIELDS,
+                "days_of_week": DAYS_OF_WEEK,
+                "error": message,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    new_gallery_images: list[dict[str, Any]] = []
+    if new_images:
+        uploaded_files = []
+        for image in new_images:
+            content = await image.read()
+            uploaded_files.append((content, image.content_type or "image/jpeg"))
+        try:
+            upload_result = storage_service.upload_images(uploaded_files, "shops")
+        except Exception as upload_error:  # noqa: BLE001
+            return render_photo_error(str(upload_error) or "Failed to upload photos.")
+        new_gallery_images = [
+            {"url": url, "publicId": upload_result["publicIds"][index], "type": "owner"}
+            for index, url in enumerate(upload_result["urls"])
+        ]
+
+    if removed_images:
+        removed_public_ids = [img["publicId"] for img in removed_images if img.get("publicId")]
+        for public_id in removed_public_ids:
+            storage_service.delete_image(public_id, is_admin=user.is_admin)
+        db_service.delete_shop_images(supabase, removed_public_ids)
+
+    if new_gallery_images:
+        db_service.add_shop_images(supabase, shop_id, new_gallery_images)
+
     if is_claimed_owner:
-        # Owners can only update the basic business details and facilities,
-        # mirroring the isClaimedOwner branch of EditShop.tsx's handleSubmit.
+        # Owners can only update the basic business details, facilities,
+        # and photos, mirroring the isClaimedOwner branch of EditShop.tsx's
+        # handleSubmit.
         owner_facilities: dict[str, Any] = dict(facilities)
         owner_facilities["customFacilities"] = custom_facility_list
         updates = {
@@ -707,22 +759,7 @@ async def edit_shop_submit(
         }
         result = db_service.update_shop_in_db(supabase, shop_id, updates)
         if not result.get("success"):
-            return templates.TemplateResponse(
-                request,
-                "edit_shop.html",
-                {
-                    "user": user,
-                    "shop": shop,
-                    "is_claimed_owner": is_claimed_owner,
-                    "standard_vibes": STANDARD_VIBES,
-                    "cheeky_vibes_options": CHEEKY_VIBES_OPTIONS,
-                    "parking_options": PARKING_OPTIONS,
-                    "facility_fields": FACILITY_FIELDS,
-                    "days_of_week": DAYS_OF_WEEK,
-                    "error": str(result.get("error") or "Could not update shop details."),
-                },
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
+            return render_photo_error(str(result.get("error") or "Could not update shop details."))
         return RedirectResponse(url=f"/shop/{shop_id}", status_code=status.HTTP_303_SEE_OTHER)
 
     # Full editor path (admin, or non claimed-owner editor).
@@ -730,53 +767,6 @@ async def edit_shop_submit(
     selected_vibes = form.getlist("vibes")
     selected_cheeky_vibes = form.getlist("cheeky_vibes")
     open_hours = {day: str(form.get(f"hours_{day}") or "") for day in DAYS_OF_WEEK}
-
-    new_images = [f for f in form.getlist("images") if _is_uploaded_file(f) and f.filename]
-    kept_urls = set(form.getlist("kept_images"))
-
-    existing_gallery = shop.get("gallery") or []
-    kept_gallery = [img for img in existing_gallery if img.get("url") in kept_urls]
-    removed_images = [img for img in existing_gallery if img.get("url") not in kept_urls]
-
-    if new_images:
-        uploaded_files = []
-        for image in new_images:
-            content = await image.read()
-            uploaded_files.append((content, image.content_type or "image/jpeg"))
-        try:
-            upload_result = storage_service.upload_images(uploaded_files, "shops")
-        except Exception as upload_error:  # noqa: BLE001
-            return templates.TemplateResponse(
-                request,
-                "edit_shop.html",
-                {
-                    "user": user,
-                    "shop": shop,
-                    "is_claimed_owner": is_claimed_owner,
-                    "standard_vibes": STANDARD_VIBES,
-                    "cheeky_vibes_options": CHEEKY_VIBES_OPTIONS,
-                    "parking_options": PARKING_OPTIONS,
-                    "facility_fields": FACILITY_FIELDS,
-                    "days_of_week": DAYS_OF_WEEK,
-                    "error": str(upload_error) or "Failed to upload photos.",
-                },
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
-        new_gallery_images = [
-            {"url": url, "publicId": upload_result["publicIds"][index], "type": "owner"}
-            for index, url in enumerate(upload_result["urls"])
-        ]
-    else:
-        new_gallery_images = []
-
-    if removed_images:
-        removed_public_ids = [img["publicId"] for img in removed_images if img.get("publicId")]
-        for public_id in removed_public_ids:
-            storage_service.delete_image(public_id, is_admin=user.is_admin)
-        db_service.delete_shop_images(supabase, removed_public_ids)
-
-    if new_gallery_images:
-        db_service.add_shop_images(supabase, shop_id, new_gallery_images)
 
     full_facilities: dict[str, Any] = dict(facilities)
     full_facilities["customFacilities"] = custom_facility_list
@@ -797,22 +787,7 @@ async def edit_shop_submit(
     }
     result = db_service.update_shop_in_db(supabase, shop_id, updates)
     if not result.get("success"):
-        return templates.TemplateResponse(
-            request,
-            "edit_shop.html",
-            {
-                "user": user,
-                "shop": shop,
-                "is_claimed_owner": is_claimed_owner,
-                "standard_vibes": STANDARD_VIBES,
-                "cheeky_vibes_options": CHEEKY_VIBES_OPTIONS,
-                "parking_options": PARKING_OPTIONS,
-                "facility_fields": FACILITY_FIELDS,
-                "days_of_week": DAYS_OF_WEEK,
-                "error": str(result.get("error") or "Failed to update shop."),
-            },
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        return render_photo_error(str(result.get("error") or "Failed to update shop."))
 
     return RedirectResponse(url=f"/shop/{shop_id}", status_code=status.HTTP_303_SEE_OTHER)
 
