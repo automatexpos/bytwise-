@@ -162,11 +162,13 @@
                     </div>
                     {% endfor %}
                 </div>
+                <div class="photo-grid" id="photo-preview-grid"></div>
                 <button type="button" class="upload-tile" onclick="document.getElementById('edit-images-input').click()">
                     <i class="fas fa-camera"></i>
                     <span>Add Photos</span>
                 </button>
-                <input type="file" id="edit-images-input" name="images" class="hidden" multiple accept="image/*">
+                <input type="file" id="edit-images-input" name="images" class="hidden" multiple accept="image/*"
+                       onchange="handleAddSpotImagePreview(this)">
             </section>
 
             <div class="form-submit-row">
