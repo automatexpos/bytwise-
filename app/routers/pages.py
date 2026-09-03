@@ -727,7 +727,12 @@ async def edit_shop_submit(
         except Exception as upload_error:  # noqa: BLE001
             return render_photo_error(str(upload_error) or "Failed to upload photos.")
         new_gallery_images = [
-            {"url": url, "publicId": upload_result["publicIds"][index], "type": "owner"}
+            {
+                "url": url,
+                "publicId": upload_result["publicIds"][index],
+                "type": "owner",
+                "uploadedBy": user.id,
+            }
             for index, url in enumerate(upload_result["urls"])
         ]
 
@@ -738,7 +743,9 @@ async def edit_shop_submit(
         db_service.delete_shop_images(supabase, removed_public_ids)
 
     if new_gallery_images:
-        db_service.add_shop_images(supabase, shop_id, new_gallery_images)
+        add_images_result = db_service.add_shop_images(supabase, shop_id, new_gallery_images)
+        if not add_images_result.get("success"):
+            return render_photo_error(str(add_images_result.get("error") or "Failed to save new photos."))
 
     if is_claimed_owner:
         # Owners can only update the basic business details, facilities,
