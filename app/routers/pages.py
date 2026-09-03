@@ -963,7 +963,7 @@ async def auth_verify_otp(request: Request) -> HTMLResponse:
     username = request.session.get("signup_username")
     password = request.session.get("signup_password")
 
-    result = sign_up(email, password)
+    result = sign_up(email, password, username=username)
     if not result.success:
         return render_otp_error(result.error or "Failed to create account")
     if result.user_id:

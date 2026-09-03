@@ -38,17 +38,23 @@ class AuthResult:
     error: Optional[str] = None
 
 
-def sign_up(email: str, password: str) -> AuthResult:
+def sign_up(email: str, password: str, username: Optional[str] = None) -> AuthResult:
     """
     Creates a new Supabase Auth user with email and password.
 
     Uses an anonymous (unauthenticated) Supabase client, the same way the
     original browser client called `supabase.auth.signUp` before any
-    session existed.
+    session existed. `username`, when given, is passed as auth user
+    metadata so the `handle_new_user` DB trigger (which creates the
+    matching `profiles` row from `auth.users`) picks the real username
+    instead of falling back to the email prefix.
     """
     client = get_supabase_client()
+    payload: dict = {"email": email, "password": password}
+    if username:
+        payload["options"] = {"data": {"username": username}}
     try:
-        response = client.auth.sign_up({"email": email, "password": password})
+        response = client.auth.sign_up(payload)
     except Exception as error:
         return AuthResult(success=False, error=str(error))
 

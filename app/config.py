@@ -37,6 +37,9 @@ class Settings(BaseModel):
     smtp_port: int = 587
     gmail_smtp_user: str = ""
     gmail_smtp_password: str = ""
+    # The address emails appear "From" (e.g. a Gmail "Send mail as" alias).
+    # Falls back to gmail_smtp_user when not set.
+    gmail_smtp_from: str = ""
 
     @property
     def is_supabase_configured(self) -> bool:
@@ -94,8 +97,12 @@ def _read_env() -> Settings:
         session_secret_key=os.environ.get("SESSION_SECRET_KEY", "dev-insecure-session-key"),
         smtp_host=os.environ.get("SMTP_HOST", "smtp.gmail.com"),
         smtp_port=int(os.environ.get("SMTP_PORT", "587")),
-        gmail_smtp_user=os.environ.get("GMAIL_SMTP_USER", ""),
-        gmail_smtp_password=os.environ.get("GMAIL_SMTP_PASSWORD", ""),
+        gmail_smtp_user=os.environ.get("GMAIL_SMTP_USER", "").strip(),
+        # Google displays app passwords as 4 space separated groups for
+        # readability; the real credential has no spaces, so strip them
+        # in case one was copied straight from the "App Passwords" page.
+        gmail_smtp_password=os.environ.get("GMAIL_SMTP_PASSWORD", "").replace(" ", ""),
+        gmail_smtp_from=os.environ.get("GMAIL_SMTP_FROM", "").strip(),
     )
 
 

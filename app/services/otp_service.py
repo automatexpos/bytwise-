@@ -10,6 +10,7 @@ import random
 import smtplib
 import time
 from email.mime.text import MIMEText
+from email.utils import parseaddr
 from typing import Optional
 
 from app.config import get_settings
@@ -39,15 +40,21 @@ def send_otp_email(to_email: str, otp: str, username: str = "") -> None:
         "This code expires in 10 minutes. If you didn't request this, "
         "you can safely ignore this email.\n"
     )
+    from_address = settings.gmail_smtp_from or settings.gmail_smtp_user
     message = MIMEText(body)
     message["Subject"] = "Your Bytwise verification code"
-    message["From"] = settings.gmail_smtp_user
+    message["From"] = from_address
     message["To"] = to_email
 
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
         server.starttls()
+        # Login must use the real Gmail account that owns the app password;
+        # from_address may be a "Send mail as" alias of that same account.
         server.login(settings.gmail_smtp_user, settings.gmail_smtp_password)
-        server.sendmail(settings.gmail_smtp_user, [to_email], message.as_string())
+        # sendmail's envelope sender must be a bare address ("MAIL FROM"),
+        # not the "Display Name <email>" form used in the From header.
+        envelope_from = parseaddr(from_address)[1] or settings.gmail_smtp_user
+        server.sendmail(envelope_from, [to_email], message.as_string())
 
 
 def store_otp(session: dict, otp: str) -> None:
