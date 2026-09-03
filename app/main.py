@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
 from app.routers import api, pages
@@ -23,6 +24,10 @@ from app.routers import api, pages
 BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(title="Bytwise", description="Cozy cafe and hidden gem discovery app.")
+
+# Signed cookie session, used to hold in-progress signup data (username,
+# email, password, OTP) between the "Get OTP" and "Verify" steps.
+app.add_middleware(SessionMiddleware, secret_key=get_settings().session_secret_key)
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
@@ -95,6 +100,13 @@ def warn_on_missing_configuration() -> None:
             "[startup warning] Gemini is not configured. Set GEMINI_API_KEY in your "
             ".env file. The 'Generate with AI' description button will fall back to "
             "a simple templated description instead of calling the Gemini API."
+        )
+
+    if not settings.is_email_configured:
+        print(
+            "[startup warning] Email is not configured. Set GMAIL_SMTP_USER and "
+            "GMAIL_SMTP_PASSWORD (a Gmail app password) in your .env file. Signup "
+            "OTP emails will fail to send until this is set."
         )
 
 

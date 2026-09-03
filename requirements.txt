@@ -3,6 +3,7 @@ uvicorn[standard]
 jinja2
 python-multipart
 python-dotenv
+itsdangerous
 supabase
 cloudinary
 google-genai

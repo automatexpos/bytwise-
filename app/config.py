@@ -31,6 +31,13 @@ class Settings(BaseModel):
 
     gemini_api_key: str = ""
 
+    session_secret_key: str = ""
+
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    gmail_smtp_user: str = ""
+    gmail_smtp_password: str = ""
+
     @property
     def is_supabase_configured(self) -> bool:
         """Mirrors the isConfigured check in lib/supabase.ts."""
@@ -57,6 +64,11 @@ class Settings(BaseModel):
         placeholder_key = "your-gemini-api-key-here"
         return bool(self.gemini_api_key and self.gemini_api_key != placeholder_key)
 
+    @property
+    def is_email_configured(self) -> bool:
+        """Whether Gmail SMTP credentials are set, for sending signup OTP codes."""
+        return bool(self.gmail_smtp_user and self.gmail_smtp_password)
+
 
 def _read_env() -> Settings:
     """
@@ -79,6 +91,11 @@ def _read_env() -> Settings:
         cloudinary_api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
         cloudinary_api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
+        session_secret_key=os.environ.get("SESSION_SECRET_KEY", "dev-insecure-session-key"),
+        smtp_host=os.environ.get("SMTP_HOST", "smtp.gmail.com"),
+        smtp_port=int(os.environ.get("SMTP_PORT", "587")),
+        gmail_smtp_user=os.environ.get("GMAIL_SMTP_USER", ""),
+        gmail_smtp_password=os.environ.get("GMAIL_SMTP_PASSWORD", ""),
     )
 
 

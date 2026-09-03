@@ -31,7 +31,7 @@ from app.security import (
     require_user,
     sign_up,
 )
-from app.services import db_service, gemini_service, storage_service
+from app.services import db_service, gemini_service, otp_service, storage_service
 
 router = APIRouter()
 
@@ -841,6 +841,9 @@ def auth_form(
         return RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
 
     mode = mode if mode in ("login", "signup") else "login"
+    if mode == "signup":
+        # A fresh visit to the signup tab always starts a new signup attempt.
+        otp_service.clear_signup_session(request.session)
     return templates.TemplateResponse(
         request,
         "auth.html",
@@ -856,10 +859,10 @@ def auth_form(
 
 @router.post("/auth", response_class=HTMLResponse)
 async def auth_submit(request: Request) -> HTMLResponse:
-    """POST /auth : handles both login and signup submissions."""
+    """POST /auth : handles login, and the first ("Get OTP") step of signup."""
     form = await request.form()
     mode = str(form.get("mode") or "login")
-    email = str(form.get("email") or "").strip()
+    email = str(form.get("email") or "").strip().lower()
     password = str(form.get("password") or "")
     username = str(form.get("username") or "").strip()
     safe_next = _safe_next_path(str(form.get("next") or "/"))
@@ -880,14 +883,32 @@ async def auth_submit(request: Request) -> HTMLResponse:
         return render_error("Password must be at least 6 characters")
 
     if mode == "signup":
-        result = sign_up(email, password)
-        if not result.success:
-            return render_error(result.error or "Failed to create account")
-        if result.user_id:
-            profile_client = get_request_supabase_client(request)
-            db_service.create_user_profile(profile_client, result.user_id, username, email)
-        return RedirectResponse(
-            url=f"/auth?mode=login&next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        check_client = get_request_supabase_client(request)
+        if db_service.is_email_or_username_taken(check_client, email, username):
+            return render_error("Email or username already taken")
+
+        otp = otp_service.generate_otp()
+        try:
+            otp_service.send_otp_email(email, otp, username=username)
+        except Exception as error:  # noqa: BLE001
+            return render_error(f"Failed to send verification email: {error}")
+
+        request.session["signup_email"] = email
+        request.session["signup_username"] = username
+        request.session["signup_password"] = password
+        otp_service.store_otp(request.session, otp)
+
+        allowed, wait = otp_service.can_resend(request.session)
+        return templates.TemplateResponse(
+            request,
+            "signup_otp.html",
+            {
+                "user": None,
+                "email": email,
+                "next": safe_next,
+                "error": None,
+                "resend_wait": wait if not allowed else 0,
+            },
         )
 
     result = log_in(email, password)
@@ -902,6 +923,109 @@ async def auth_submit(request: Request) -> HTMLResponse:
         samesite="lax",
     )
     return response
+
+
+@router.post("/auth/verify-otp", response_class=HTMLResponse)
+async def auth_verify_otp(request: Request) -> HTMLResponse:
+    """POST /auth/verify-otp : the second (code entry) step of signup."""
+    form = await request.form()
+    entered_otp = str(form.get("otp") or "").strip()
+    safe_next = _safe_next_path(str(form.get("next") or "/"))
+    email = request.session.get("signup_email")
+
+    def render_otp_error(message: str) -> HTMLResponse:
+        allowed, wait = otp_service.can_resend(request.session)
+        return templates.TemplateResponse(
+            request,
+            "signup_otp.html",
+            {
+                "user": None,
+                "email": email,
+                "next": safe_next,
+                "error": message,
+                "resend_wait": wait if not allowed else 0,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not email:
+        # Session expired or was never started; send them back to the signup form.
+        return RedirectResponse(
+            url=f"/auth?mode=signup&next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    ok, reason = otp_service.verify_otp(request.session, entered_otp)
+    if not ok:
+        if reason == "expired":
+            return render_otp_error("OTP has expired. Please request a new code.")
+        return render_otp_error("Invalid verification code. Please try again.")
+
+    username = request.session.get("signup_username")
+    password = request.session.get("signup_password")
+
+    result = sign_up(email, password)
+    if not result.success:
+        return render_otp_error(result.error or "Failed to create account")
+    if result.user_id:
+        profile_client = get_request_supabase_client(request)
+        db_service.create_user_profile(profile_client, result.user_id, username, email)
+
+    otp_service.clear_signup_session(request.session)
+    return RedirectResponse(
+        url=f"/auth?mode=login&next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+@router.post("/auth/resend-otp", response_class=HTMLResponse)
+async def auth_resend_otp(request: Request) -> HTMLResponse:
+    """POST /auth/resend-otp : re-sends a new code during the signup OTP step."""
+    form = await request.form()
+    safe_next = _safe_next_path(str(form.get("next") or "/"))
+    email = request.session.get("signup_email")
+    username = request.session.get("signup_username") or ""
+
+    if not email:
+        return RedirectResponse(
+            url=f"/auth?mode=signup&next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    allowed, wait = otp_service.can_resend(request.session)
+    if not allowed:
+        return templates.TemplateResponse(
+            request,
+            "signup_otp.html",
+            {"user": None, "email": email, "next": safe_next, "error": None, "resend_wait": wait},
+        )
+
+    otp = otp_service.generate_otp()
+    try:
+        otp_service.send_otp_email(email, otp, username=username)
+    except Exception as error:  # noqa: BLE001
+        return templates.TemplateResponse(
+            request,
+            "signup_otp.html",
+            {
+                "user": None,
+                "email": email,
+                "next": safe_next,
+                "error": f"Failed to send verification email: {error}",
+                "resend_wait": 0,
+            },
+        )
+
+    otp_service.store_otp(request.session, otp)
+    return templates.TemplateResponse(
+        request,
+        "signup_otp.html",
+        {
+            "user": None,
+            "email": email,
+            "next": safe_next,
+            "error": None,
+            "notice": "A new code has been sent.",
+            "resend_wait": otp_service.RESEND_COOLDOWN_SECONDS,
+        },
+    )
 
 
 @router.post("/logout")

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Verify your email, Bytwise{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-logo"><i class="fas fa-envelope-open-text"></i></div>
+            <h1>Bytwise</h1>
+            <p class="text-muted">
+                We sent a 6-digit code to <strong>{{ email }}</strong>. Enter it below to finish creating your account.
+            </p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+        {% if notice %}
+        <div class="alert">{{ notice }}</div>
+        {% endif %}
+
+        <form method="post" action="/auth/verify-otp" class="stacked-form" id="otp-form">
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <div class="form-field">
+                <label>Verification Code</label>
+                <input type="text" name="otp" required maxlength="6" pattern="\d{6}" inputmode="numeric"
+                       placeholder="123456" autocomplete="one-time-code">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg">Verify &amp; Create Account</button>
+        </form>
+
+        <form method="post" action="/auth/resend-otp" class="stacked-form" id="resend-form">
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="btn btn-link btn-block" id="resend-btn" {% if resend_wait and resend_wait > 0 %}disabled{% endif %}>
+                <span id="resend-label">
+                    {% if resend_wait and resend_wait > 0 %}Resend code in <span id="resend-count">{{ resend_wait }}</span>s{% else %}Resend code{% endif %}
+                </span>
+            </button>
+        </form>
+
+        <p class="auth-footnote"><a href="/auth?mode=signup&next={{ next|urlencode }}">Use a different email</a></p>
+    </div>
+</div>
+
+<script>
+(function () {
+    var seconds = {{ resend_wait or 0 }};
+    var btn = document.getElementById('resend-btn');
+    var label = document.getElementById('resend-label');
+    var countEl = document.getElementById('resend-count');
+    if (!seconds || !btn) return;
+
+    var timer = setInterval(function () {
+        seconds -= 1;
+        if (seconds <= 0) {
+            clearInterval(timer);
+            btn.disabled = false;
+            label.textContent = 'Resend code';
+            return;
+        }
+        if (countEl) countEl.textContent = seconds;
+    }, 1000);
+})();
+</script>
+{% endblock %}

@@ -136,6 +136,21 @@ def _fetch_user_connections(supabase: Client, user_id: str) -> tuple[list[str], 
         )
 
 
+def is_email_or_username_taken(supabase: Client, email: str, username: str) -> bool:
+    """Checks whether a profile already exists with this email or username."""
+    try:
+        response = (
+            supabase.table("profiles")
+            .select("id")
+            .or_(f"email.eq.{email},username.eq.{username}")
+            .execute()
+        )
+        return bool(response.data)
+    except Exception as error:  # noqa: BLE001
+        print(f"Error checking existing email/username: {error}")
+        return False
+
+
 def fetch_user_profile(supabase: Client, user_id: str) -> Optional[dict[str, Any]]:
     """
     Fetches a user's profile row plus saved shops, visited shops, and
