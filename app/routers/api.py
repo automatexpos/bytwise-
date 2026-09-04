@@ -300,3 +300,64 @@ def approve_claim(
             detail=str(result.get("error") or "Could not approve claim request."),
         )
     return result
+
+
+@router.post("/admin/hide-shop")
+def hide_shop(
+    payload: dict[str, Any] = Body(...),
+    user: User = Depends(require_admin),
+    supabase=Depends(get_request_supabase_client),
+) -> dict[str, Any]:
+    """POST /api/admin/hide-shop : hides a shop from public listings."""
+    shop_id = str(payload.get("shopId") or "")
+    if not shop_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="shopId is required.")
+
+    result = db_service.set_shop_hidden(supabase, shop_id, True)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(result.get("error") or "Could not hide shop."),
+        )
+    return result
+
+
+@router.post("/admin/unhide-shop")
+def unhide_shop(
+    payload: dict[str, Any] = Body(...),
+    user: User = Depends(require_admin),
+    supabase=Depends(get_request_supabase_client),
+) -> dict[str, Any]:
+    """POST /api/admin/unhide-shop : makes a hidden shop public again."""
+    shop_id = str(payload.get("shopId") or "")
+    if not shop_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="shopId is required.")
+
+    result = db_service.set_shop_hidden(supabase, shop_id, False)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(result.get("error") or "Could not unhide shop."),
+        )
+    return result
+
+
+@router.post("/admin/delete-shop")
+def delete_shop(
+    payload: dict[str, Any] = Body(...),
+    user: User = Depends(require_admin),
+    supabase=Depends(get_request_supabase_client),
+) -> dict[str, Any]:
+    """POST /api/admin/delete-shop : permanently deletes a shop and all its assets."""
+    shop_id = str(payload.get("shopId") or "")
+    if not shop_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="shopId is required.")
+
+    result = db_service.delete_shop(supabase, shop_id)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(result.get("error") or "Could not delete shop."),
+        )
+    return result
+

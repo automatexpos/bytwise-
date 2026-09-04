@@ -20,7 +20,7 @@ from typing import Any, Callable, Optional, TypeVar
 
 from supabase import Client
 
-from app.services import rating_service
+from app.services import rating_service, storage_service
 
 T = TypeVar("T")
 
@@ -388,12 +388,15 @@ def update_user_profile(
 # ==================== SHOPS ====================
 
 
-def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
+def fetch_shops(supabase: Client, include_hidden: bool = False) -> list[dict[str, Any]]:
     """
     Fetches every shop with its images, reviews, and aggregated vibe votes.
 
     Python equivalent of fetchShops in dbService.ts. Retries with backoff
     (3 retries, 1 second base delay) the same way the original did.
+
+    Shops with `is_hidden = true` (admin-hidden spots) are excluded unless
+    `include_hidden` is True, which admin-only views should pass.
     """
 
     def _do_fetch() -> list[dict[str, Any]]:
@@ -549,8 +552,11 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
                     "openHours": shop.get("open_hours"),
                     "parking": shop.get("parking"),
                     "facilities": shop.get("facilities"),
+                    "isHidden": bool(shop.get("is_hidden")),
                 }
             )
+        if not include_hidden:
+            results = [shop for shop in results if not shop["isHidden"]]
         return results
 
     try:
@@ -558,6 +564,54 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
     except Exception as error:  # noqa: BLE001
         print(f"[dbService] Error fetching shops (all retries exhausted): {error}")
         raise
+
+
+def set_shop_hidden(supabase: Client, shop_id: str, hidden: bool) -> dict[str, Any]:
+    """Hides or unhides a shop from public listings. Admin only (enforced at the route layer)."""
+    try:
+        response = supabase.table("shops").update({"is_hidden": hidden}).eq("id", shop_id).execute()
+        _raise_if_error(response)
+        if not response.data:
+            return {"success": False, "error": "Shop not found."}
+        return {"success": True}
+    except Exception as error:  # noqa: BLE001
+        print(f"Error setting shop {shop_id} hidden={hidden}: {error}")
+        return {"success": False, "error": str(error)}
+
+
+def delete_shop(supabase: Client, shop_id: str) -> dict[str, Any]:
+    """
+    Permanently deletes a shop and every asset tied to it. Admin only
+    (enforced at the route layer).
+
+    Shop images are removed from Cloudinary first (best effort; a failed
+    Cloudinary delete does not block removing the database row). Every
+    other table referencing shop_id (shop_images, reviews, saved_shops,
+    visited_shops, vibe_votes, shop_category_ratings, claim_requests) is
+    declared ON DELETE CASCADE in the schema, so deleting the shops row
+    removes those rows automatically.
+    """
+    try:
+        images_response = (
+            supabase.table("shop_images").select("cloudinary_public_id").eq("shop_id", shop_id).execute()
+        )
+        for image in images_response.data or []:
+            public_id = image.get("cloudinary_public_id")
+            if not public_id:
+                continue
+            try:
+                storage_service.delete_image(public_id, is_admin=True)
+            except Exception as image_error:  # noqa: BLE001
+                print(f"Could not delete Cloudinary image {public_id} for shop {shop_id}: {image_error}")
+
+        delete_response = supabase.table("shops").delete().eq("id", shop_id).execute()
+        _raise_if_error(delete_response)
+        if not delete_response.data:
+            return {"success": False, "error": "Shop not found."}
+        return {"success": True}
+    except Exception as error:  # noqa: BLE001
+        print(f"Error deleting shop {shop_id}: {error}")
+        return {"success": False, "error": str(error)}
 
 
 def find_duplicate_shops(

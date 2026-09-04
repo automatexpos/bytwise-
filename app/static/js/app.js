@@ -722,7 +722,42 @@ function approveClaim(requestId, button) {
         .catch(function (error) { toast.error(error.message || "Could not approve claim request."); });
 }
 
+function adminHideShop(shopId, button) {
+    if (!window.confirm("Hide this spot from public listings? Admins will still be able to see it.")) return;
+    postJson("/api/admin/hide-shop", { shopId: shopId })
+        .then(function () {
+            toast.success("Spot hidden from public listings.");
+            window.location.reload();
+        })
+        .catch(function (error) { toast.error(error.message || "Could not hide this spot."); });
+}
+
+function adminUnhideShop(shopId, button) {
+    postJson("/api/admin/unhide-shop", { shopId: shopId })
+        .then(function () {
+            toast.success("Spot is public again.");
+            window.location.reload();
+        })
+        .catch(function (error) { toast.error(error.message || "Could not unhide this spot."); });
+}
+
+function adminDeleteShop(shopId, shopName, button) {
+    if (!window.confirm('Permanently delete "' + shopName + '"? This deletes all its photos, reviews, and saved/visited records. This cannot be undone.')) return;
+    if (button) button.disabled = true;
+    postJson("/api/admin/delete-shop", { shopId: shopId })
+        .then(function () {
+            var row = document.getElementById("admin-shop-" + shopId);
+            if (row) row.remove();
+            toast.success("Spot deleted.");
+        })
+        .catch(function (error) {
+            toast.error(error.message || "Could not delete this spot.");
+            if (button) button.disabled = false;
+        });
+}
+
 /* ==================== GOOGLE MAPS URL -> LAT/LNG ==================== */
+
 
 function updateLatLngFromMapsUrl(input) {
     var url = input.value.trim();

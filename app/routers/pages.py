@@ -266,12 +266,14 @@ def shop_detail(
 ) -> HTMLResponse:
     """GET /shop/{shop_id} : gallery, vibes, reviews, vibe voting, save/visit, claim link."""
     try:
-        shops = db_service.fetch_shops(supabase)
+        shops = db_service.fetch_shops(supabase, include_hidden=True)
     except Exception:
         shops = []
 
     shop = _shop_by_id(shops, shop_id)
     if not shop:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
+    if shop.get("isHidden") and not (user and user.is_admin):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shop not found")
 
     claim_requests = _load_claim_requests_for(user, supabase)
@@ -629,7 +631,7 @@ def edit_shop_form(
 ) -> HTMLResponse:
     """GET /edit-shop/{shop_id} : owner/admin only, matches EditShop.tsx."""
     try:
-        shops = db_service.fetch_shops(supabase)
+        shops = db_service.fetch_shops(supabase, include_hidden=True)
     except Exception:
         shops = []
 
@@ -671,7 +673,7 @@ async def edit_shop_submit(
 ) -> HTMLResponse:
     """POST /edit-shop/{shop_id} : updates shop details, mirrors EditShop.tsx."""
     try:
-        shops = db_service.fetch_shops(supabase)
+        shops = db_service.fetch_shops(supabase, include_hidden=True)
     except Exception:
         shops = []
 
@@ -1323,7 +1325,7 @@ def admin_dashboard(
 ) -> HTMLResponse:
     """GET /admin : pending images, claim requests, admin-only, matches AdminDashboard.tsx."""
     try:
-        shops = db_service.fetch_shops(supabase)
+        shops = db_service.fetch_shops(supabase, include_hidden=True)
     except Exception:
         shops = []
 
@@ -1342,6 +1344,9 @@ def admin_dashboard(
         shop = _shop_by_id(shops, request_row.get("shop_id"))
         request_row["shop_name"] = shop["name"] if shop else "Unknown Shop"
 
+    visible_shops = [s for s in shops if not s.get("isHidden")]
+    hidden_shops = [s for s in shops if s.get("isHidden")]
+
     return templates.TemplateResponse(
         request,
         "admin_dashboard.html",
@@ -1350,5 +1355,8 @@ def admin_dashboard(
             "pending_images": pending_images,
             "pending_requests": pending_requests,
             "approved_requests": approved_requests,
+            "visible_shops": visible_shops,
+            "hidden_shops": hidden_shops,
         },
     )
+
