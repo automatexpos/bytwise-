@@ -560,6 +560,57 @@ def fetch_shops(supabase: Client) -> list[dict[str, Any]]:
         raise
 
 
+def find_duplicate_shops(
+    supabase: Client, name: str, city: str, area: Optional[str] = None
+) -> dict[str, Any]:
+    """
+    Looks for existing shops that might be the same as (name, city, area).
+
+    Returns {"exact": [...], "similar": [...]}. "exact" holds shops whose
+    normalized name/city/area match exactly. "similar" holds shops in the
+    same city (and area, when both provided) whose name is a close fuzzy
+    match, ordered by descending similarity, each with a "similarity" key
+    (0-1 ratio).
+    """
+    import difflib
+
+    normalized_name = (name or "").strip().lower()
+    normalized_city = (city or "").strip().lower()
+    normalized_area = (area or "").strip().lower()
+
+    if not normalized_name or not normalized_city:
+        return {"exact": [], "similar": []}
+
+    response = (
+        supabase.table("shops")
+        .select("id, name, city, area")
+        .ilike("city", normalized_city)
+        .execute()
+    )
+    rows = response.data or []
+
+    exact: list[dict[str, Any]] = []
+    similar: list[dict[str, Any]] = []
+    for row in rows:
+        row_name = (row.get("name") or "").strip().lower()
+        row_area = (row.get("area") or "").strip().lower()
+        area_matches = (not normalized_area and not row_area) or normalized_area == row_area
+
+        if row_name == normalized_name and area_matches:
+            exact.append(row)
+            continue
+
+        if not area_matches:
+            continue
+
+        ratio = difflib.SequenceMatcher(None, row_name, normalized_name).ratio()
+        if ratio >= 0.80:
+            similar.append({**row, "similarity": round(ratio, 2)})
+
+    similar.sort(key=lambda row: -row["similarity"])
+    return {"exact": exact, "similar": similar}
+
+
 def create_shop(supabase: Client, shop_data: dict[str, Any]) -> dict[str, Any]:
     """
     Creates a new shop row plus any accompanying shop_images rows.

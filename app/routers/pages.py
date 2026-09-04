@@ -436,9 +436,18 @@ async def add_spot_submit(
     open_hours = {day: str(form.get(f"hours_{day}") or "") for day in DAYS_OF_WEEK}
 
     images = [f for f in form.getlist("images") if _is_uploaded_file(f) and f.filename]
+    duplicate_confirmed_different = str(form.get("duplicate_override") or "") == "true"
 
     error: Optional[str] = None
-    if not address:
+    duplicates = db_service.find_duplicate_shops(supabase, name, city, area)
+    if duplicates["exact"]:
+        error = f"A shop named \"{duplicates['exact'][0]['name']}\" already exists in {city}. Please edit the existing listing instead of creating a duplicate."
+    elif duplicates["similar"] and not duplicate_confirmed_different:
+        error = (
+            f"A similar shop named \"{duplicates['similar'][0]['name']}\" already exists in {city}. "
+            "Please confirm whether it's the same shop before continuing."
+        )
+    elif not address:
         error = "Please paste the Google Maps URL for this spot."
     elif not images:
         error = "Please upload at least one photo."

@@ -773,11 +773,85 @@ function setupAddSpotForm() {
     var form = document.getElementById("add-spot-form");
     if (!form) return;
 
+    var nameInput = form.querySelector('input[name="name"]');
+    var cityInput = form.querySelector('input[name="city"]');
+    var areaInput = form.querySelector('input[name="area"]');
+    var overrideInput = document.getElementById("duplicate-override-input");
+    var warningEl = document.getElementById("duplicate-shop-warning");
+    var duplicateBlocked = false;
+
+    function showDuplicateWarning(message) {
+        if (!warningEl) return;
+        warningEl.textContent = message;
+        warningEl.classList.remove("hidden");
+    }
+
+    function resetDuplicateCheck() {
+        duplicateBlocked = false;
+        if (overrideInput) overrideInput.value = "";
+        if (warningEl) {
+            warningEl.textContent = "";
+            warningEl.classList.add("hidden");
+        }
+    }
+
+    function checkForDuplicateShop() {
+        var name = nameInput ? nameInput.value.trim() : "";
+        var city = cityInput ? cityInput.value.trim() : "";
+        var area = areaInput ? areaInput.value.trim() : "";
+        if (!name || !city) return;
+
+        postJson("/api/check-shop-duplicate", { name: name, city: city, area: area })
+            .then(function (data) {
+                if (data.status === "exact") {
+                    duplicateBlocked = true;
+                    if (overrideInput) overrideInput.value = "";
+                    showDuplicateWarning(
+                        'A shop named "' + data.matches[0].name + '" already exists in ' + city +
+                        ". Please visit its existing page instead of adding a duplicate."
+                    );
+                } else if (data.status === "similar") {
+                    var match = data.matches[0];
+                    var sameShop = window.confirm(
+                        'A shop named "' + match.name + '" already exists in ' + city + '. Is this the same shop?'
+                    );
+                    if (sameShop) {
+                        duplicateBlocked = true;
+                        if (overrideInput) overrideInput.value = "";
+                        showDuplicateWarning(
+                            'This shop already exists ("' + match.name + '"). Please visit its existing page instead of adding a duplicate.'
+                        );
+                    } else {
+                        duplicateBlocked = false;
+                        if (overrideInput) overrideInput.value = "true";
+                        if (warningEl) {
+                            warningEl.textContent = "";
+                            warningEl.classList.add("hidden");
+                        }
+                    }
+                } else {
+                    resetDuplicateCheck();
+                }
+            })
+            .catch(function () { /* ignore; server-side check still runs on submit */ });
+    }
+
+    [nameInput, cityInput, areaInput].forEach(function (input) {
+        if (!input) return;
+        input.addEventListener("input", resetDuplicateCheck);
+        input.addEventListener("blur", checkForDuplicateShop);
+    });
+
     form.addEventListener("submit", function (e) {
         var addressInput = form.querySelector('input[name="address"]');
         var imagesInput = document.getElementById("images-input");
         var vibeChecked = form.querySelectorAll('input[name="vibes"]:checked');
 
+        if (duplicateBlocked) {
+            e.preventDefault();
+            toast.error("This shop appears to already exist. Please resolve the duplicate warning before continuing.");
+            return;
+        }
         if (!addressInput.value.trim()) {
             e.preventDefault();
             toast.error("Please paste the Google Maps URL for this spot.");
@@ -806,6 +880,7 @@ function setupAddSpotForm() {
     });
     updateStandardVibeCount();
 }
+
 
 function updateStandardVibeCount() {
     var counter = document.getElementById("standard-vibe-count");

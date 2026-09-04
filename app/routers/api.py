@@ -35,6 +35,28 @@ def list_shops(supabase=Depends(get_request_supabase_client)) -> dict[str, Any]:
     return {"shops": shops}
 
 
+@router.post("/check-shop-duplicate")
+def check_shop_duplicate(
+    payload: dict[str, Any] = Body(...),
+    user: User = Depends(require_user),
+    supabase=Depends(get_request_supabase_client),
+) -> dict[str, Any]:
+    """POST /api/check-shop-duplicate : looks for existing shops matching name/city/area."""
+    name = str(payload.get("name") or "").strip()
+    city = str(payload.get("city") or "").strip()
+    area = str(payload.get("area") or "").strip()
+
+    if not name or not city:
+        return {"status": "ok"}
+
+    result = db_service.find_duplicate_shops(supabase, name, city, area)
+    if result["exact"]:
+        return {"status": "exact", "matches": result["exact"]}
+    if result["similar"]:
+        return {"status": "similar", "matches": result["similar"]}
+    return {"status": "ok"}
+
+
 @router.post("/vibe-vote")
 def vibe_vote(
     payload: dict[str, Any] = Body(...),
