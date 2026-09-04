@@ -402,6 +402,7 @@ def add_spot_form(
             "selected_vibes": [],
             "selected_cheeky_vibes": [],
             "error": None,
+            "show_full_form": False,
         },
     )
 
@@ -440,6 +441,7 @@ async def add_spot_submit(
 
     error: Optional[str] = None
     duplicates = db_service.find_duplicate_shops(supabase, name, city, area)
+    is_duplicate_error = bool(duplicates["exact"]) or (bool(duplicates["similar"]) and not duplicate_confirmed_different)
     if duplicates["exact"]:
         error = f"A shop named \"{duplicates['exact'][0]['name']}\" already exists in {city}. Please edit the existing listing instead of creating a duplicate."
     elif duplicates["similar"] and not duplicate_confirmed_different:
@@ -472,6 +474,7 @@ async def add_spot_submit(
                 "selected_vibes": selected_vibes,
                 "selected_cheeky_vibes": selected_cheeky_vibes,
                 "error": error,
+                "show_full_form": not is_duplicate_error,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -501,6 +504,7 @@ async def add_spot_submit(
                 "selected_vibes": selected_vibes,
                 "selected_cheeky_vibes": selected_cheeky_vibes,
                 "error": str(upload_error) or "Failed to upload photos.",
+                "show_full_form": True,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )
@@ -546,6 +550,7 @@ async def add_spot_submit(
                 "selected_vibes": selected_vibes,
                 "selected_cheeky_vibes": selected_cheeky_vibes,
                 "error": str(result.get("error") or "Failed to create shop."),
+                "show_full_form": True,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
         )

@@ -39,9 +39,15 @@
                                value="{{ form_data.get('area', '') }}">
                     </div>
                 </div>
-                <p class="text-muted small hidden" id="duplicate-shop-warning"></p>
+                <div class="alert alert-error hidden" id="duplicate-shop-warning"></div>
+                <div class="form-submit-row {{ '' if not show_full_form else 'hidden' }}" id="validate-spot-row">
+                    <button type="button" class="btn btn-primary" id="validate-spot-btn" onclick="validateAddSpotBasics()">
+                        Validate <i class="fas fa-check"></i>
+                    </button>
+                </div>
             </section>
 
+            <div id="add-spot-rest" class="{{ '' if show_full_form else 'hidden' }}">
             <section class="form-section">
                 <h2>Location</h2>
                 <div class="form-field">
@@ -151,6 +157,7 @@
                     Submit Spot <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
+            </div>
         </form>
     </div>
 </div>
@@ -163,3 +170,4 @@
     });
 </script>
 {% endblock %}
+

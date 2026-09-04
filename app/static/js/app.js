@@ -775,81 +775,23 @@ function setupAddSpotForm() {
 
     var nameInput = form.querySelector('input[name="name"]');
     var cityInput = form.querySelector('input[name="city"]');
+    var stateInput = form.querySelector('input[name="state"]');
     var areaInput = form.querySelector('input[name="area"]');
-    var overrideInput = document.getElementById("duplicate-override-input");
-    var warningEl = document.getElementById("duplicate-shop-warning");
-    var duplicateBlocked = false;
 
-    function showDuplicateWarning(message) {
-        if (!warningEl) return;
-        warningEl.textContent = message;
-        warningEl.classList.remove("hidden");
-    }
-
-    function resetDuplicateCheck() {
-        duplicateBlocked = false;
-        if (overrideInput) overrideInput.value = "";
-        if (warningEl) {
-            warningEl.textContent = "";
-            warningEl.classList.add("hidden");
-        }
-    }
-
-    function checkForDuplicateShop() {
-        var name = nameInput ? nameInput.value.trim() : "";
-        var city = cityInput ? cityInput.value.trim() : "";
-        var area = areaInput ? areaInput.value.trim() : "";
-        if (!name || !city) return;
-
-        postJson("/api/check-shop-duplicate", { name: name, city: city, area: area })
-            .then(function (data) {
-                if (data.status === "exact") {
-                    duplicateBlocked = true;
-                    if (overrideInput) overrideInput.value = "";
-                    showDuplicateWarning(
-                        'A shop named "' + data.matches[0].name + '" already exists in ' + city +
-                        ". Please visit its existing page instead of adding a duplicate."
-                    );
-                } else if (data.status === "similar") {
-                    var match = data.matches[0];
-                    var sameShop = window.confirm(
-                        'A shop named "' + match.name + '" already exists in ' + city + '. Is this the same shop?'
-                    );
-                    if (sameShop) {
-                        duplicateBlocked = true;
-                        if (overrideInput) overrideInput.value = "";
-                        showDuplicateWarning(
-                            'This shop already exists ("' + match.name + '"). Please visit its existing page instead of adding a duplicate.'
-                        );
-                    } else {
-                        duplicateBlocked = false;
-                        if (overrideInput) overrideInput.value = "true";
-                        if (warningEl) {
-                            warningEl.textContent = "";
-                            warningEl.classList.add("hidden");
-                        }
-                    }
-                } else {
-                    resetDuplicateCheck();
-                }
-            })
-            .catch(function () { /* ignore; server-side check still runs on submit */ });
-    }
-
-    [nameInput, cityInput, areaInput].forEach(function (input) {
+    [nameInput, cityInput, stateInput, areaInput].forEach(function (input) {
         if (!input) return;
-        input.addEventListener("input", resetDuplicateCheck);
-        input.addEventListener("blur", checkForDuplicateShop);
+        input.addEventListener("input", hideRestOfAddSpotForm);
     });
 
     form.addEventListener("submit", function (e) {
+        var restSection = document.getElementById("add-spot-rest");
         var addressInput = form.querySelector('input[name="address"]');
         var imagesInput = document.getElementById("images-input");
         var vibeChecked = form.querySelectorAll('input[name="vibes"]:checked');
 
-        if (duplicateBlocked) {
+        if (restSection && restSection.classList.contains("hidden")) {
             e.preventDefault();
-            toast.error("This shop appears to already exist. Please resolve the duplicate warning before continuing.");
+            toast.error("Please validate the shop name, city, and state first.");
             return;
         }
         if (!addressInput.value.trim()) {
@@ -881,6 +823,103 @@ function setupAddSpotForm() {
     updateStandardVibeCount();
 }
 
+function hideDuplicateWarning() {
+    var warningEl = document.getElementById("duplicate-shop-warning");
+    if (warningEl) {
+        warningEl.textContent = "";
+        warningEl.classList.add("hidden");
+    }
+}
+
+function hideRestOfAddSpotForm() {
+    var restSection = document.getElementById("add-spot-rest");
+    var validateBtn = document.getElementById("validate-spot-btn");
+    var overrideInput = document.getElementById("duplicate-override-input");
+    if (restSection) restSection.classList.add("hidden");
+    if (validateBtn) {
+        validateBtn.disabled = false;
+        validateBtn.innerHTML = 'Validate <i class="fas fa-check"></i>';
+    }
+    if (overrideInput) overrideInput.value = "";
+    hideDuplicateWarning();
+}
+
+function revealRestOfAddSpotForm() {
+    var restSection = document.getElementById("add-spot-rest");
+    if (restSection) restSection.classList.remove("hidden");
+    hideDuplicateWarning();
+    toast.success("Looks good! Add the rest of the details below.");
+}
+
+function blockDuplicateShopAndRedirect(message) {
+    var warningEl = document.getElementById("duplicate-shop-warning");
+    if (warningEl) {
+        warningEl.textContent = message;
+        warningEl.classList.remove("hidden");
+    }
+    toast.error(message);
+    setTimeout(function () { window.location.href = "/"; }, 2500);
+}
+
+function validateAddSpotBasics() {
+    var form = document.getElementById("add-spot-form");
+    if (!form) return;
+
+    var name = (form.querySelector('input[name="name"]') || {}).value || "";
+    var city = (form.querySelector('input[name="city"]') || {}).value || "";
+    var state = (form.querySelector('input[name="state"]') || {}).value || "";
+    var area = (form.querySelector('input[name="area"]') || {}).value || "";
+    name = name.trim(); city = city.trim(); state = state.trim(); area = area.trim();
+
+    hideDuplicateWarning();
+
+    if (!name || !city || !state) {
+        toast.error("Please fill in the shop name, city, and state before validating.");
+        return;
+    }
+
+    var validateBtn = document.getElementById("validate-spot-btn");
+    if (validateBtn) {
+        validateBtn.disabled = true;
+        validateBtn.innerHTML = 'Checking... <i class="fas fa-spinner fa-spin"></i>';
+    }
+
+    postJson("/api/check-shop-duplicate", { name: name, city: city, area: area })
+        .then(function (data) {
+            if (data.status === "exact") {
+                blockDuplicateShopAndRedirect(
+                    'A shop named "' + data.matches[0].name + '" already exists in ' + city + ". You can't add a duplicate shop."
+                );
+                return;
+            }
+            if (data.status === "similar") {
+                var match = data.matches[0];
+                var sameShop = window.confirm(
+                    'A shop named "' + match.name + '" already exists in ' + city + '. Is this the same shop?'
+                );
+                if (sameShop) {
+                    blockDuplicateShopAndRedirect(
+                        '"' + match.name + '" already exists in ' + city + ". You can't add a duplicate shop."
+                    );
+                    return;
+                }
+                var overrideInput = document.getElementById("duplicate-override-input");
+                if (overrideInput) overrideInput.value = "true";
+            }
+            revealRestOfAddSpotForm();
+            if (validateBtn) {
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = 'Validated <i class="fas fa-check"></i>';
+            }
+        })
+        .catch(function (error) {
+            toast.error(error.message || "Could not check for duplicate shops. Please try again.");
+            if (validateBtn) {
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = 'Validate <i class="fas fa-check"></i>';
+            }
+        });
+}
 
 function updateStandardVibeCount() {
     var counter = document.getElementById("standard-vibe-count");
