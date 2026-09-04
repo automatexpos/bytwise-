@@ -1559,7 +1559,6 @@ def admin_dashboard(
         shop = _shop_by_id(shops, request_row.get("shop_id"))
         request_row["shop_name"] = shop["name"] if shop else "Unknown Shop"
 
-    visible_shops = [s for s in shops if not s.get("isHidden")]
     hidden_shops = [s for s in shops if s.get("isHidden")]
 
     return templates.TemplateResponse(
@@ -1570,7 +1569,6 @@ def admin_dashboard(
             "pending_images": pending_images,
             "pending_requests": pending_requests,
             "approved_requests": approved_requests,
-            "visible_shops": visible_shops,
             "hidden_shops": hidden_shops,
         },
     )

@@ -270,6 +270,15 @@
                     </a>
                     {% endif %}
 
+                    {% if is_admin %}
+                    <button type="button" class="btn {{ 'btn-secondary' if shop.isHidden else 'btn-outline' }} btn-block"
+                            id="admin-hide-shop-btn"
+                            onclick="{{ 'adminUnhideShop' if shop.isHidden else 'adminHideShop' }}('{{ shop.id }}', this)">
+                        <i class="fas {{ 'fa-eye' if shop.isHidden else 'fa-eye-slash' }}"></i>
+                        <span>{{ "Unhide Spot" if shop.isHidden else "Hide Spot" }}</span>
+                    </button>
+                    {% endif %}
+
                     {% if user %}
                     <button type="button" class="btn {{ 'btn-secondary' if is_saved else 'btn-outline' }} btn-block"
                             id="save-shop-btn" onclick="toggleSaveShop('{{ shop.id }}', this)">
