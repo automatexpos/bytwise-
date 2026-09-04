@@ -116,3 +116,32 @@ def get_supabase_client(access_token: str | None = None) -> Client:
         client.postgrest.auth(access_token)
 
     return client
+
+
+def admin_update_user_password(user_id: str, new_password: str) -> None:
+    """
+    Sets a Supabase Auth user's password directly, bypassing the need for
+    that user's own session.
+
+    Used only by the forgot-password flow: once a user proves ownership of
+    their email via our own OTP (see app.services.otp_service), there is no
+    existing Supabase session available to call `auth.update_user` with, so
+    the Admin API is used instead. Requires SUPABASE_SERVICE_ROLE_KEY; this
+    is the one place in the backend a service role key is used, and it
+    never leaves the server.
+    """
+    settings = get_settings()
+    if not settings.is_service_role_configured:
+        raise RuntimeError(
+            "Password reset is not configured. Set SUPABASE_SERVICE_ROLE_KEY in the environment."
+        )
+    if not settings.is_supabase_configured:
+        raise RuntimeError(
+            "Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY "
+            "(or VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) in the environment."
+        )
+
+    options = ClientOptions(headers={"x-client-info": "bytwise-backend-admin"}, schema="public")
+    admin_client = create_client(settings.supabase_url, settings.supabase_service_role_key, options)
+    admin_client.auth.admin.update_user_by_id(user_id, {"password": new_password})
+

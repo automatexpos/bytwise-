@@ -24,6 +24,11 @@ class Settings(BaseModel):
 
     supabase_url: str = ""
     supabase_anon_key: str = ""
+    # Service role key, only used server-side to reset a user's password
+    # after they verify a forgot-password OTP (there is no existing user
+    # session to update the password with in that flow). Never sent to
+    # the browser and never used for anything else.
+    supabase_service_role_key: str = ""
 
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
@@ -72,6 +77,11 @@ class Settings(BaseModel):
         """Whether Gmail SMTP credentials are set, for sending signup OTP codes."""
         return bool(self.gmail_smtp_user and self.gmail_smtp_password)
 
+    @property
+    def is_service_role_configured(self) -> bool:
+        """Whether a Supabase service role key is set, needed for forgot-password resets."""
+        return bool(self.supabase_service_role_key)
+
 
 def _read_env() -> Settings:
     """
@@ -90,6 +100,7 @@ def _read_env() -> Settings:
     return Settings(
         supabase_url=supabase_url,
         supabase_anon_key=supabase_anon_key,
+        supabase_service_role_key=os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip(),
         cloudinary_cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
         cloudinary_api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
         cloudinary_api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""),

@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from app.chatbot_config import get_chatbot_api_url
 from app.constants import CHEEKY_VIBES_OPTIONS, PARKING_OPTIONS, STANDARD_VIBES
 from app.models import User
+from app import database
 from app.security import (
     SESSION_COOKIE_NAME,
     get_current_user,
@@ -850,7 +851,11 @@ def auth_form(
             "mode": mode,
             "error": None,
             "next": safe_next,
-            "notice": "To write a review please signup" if notice == "review" else None,
+            "notice": (
+                "To write a review please signup" if notice == "review"
+                else "Your password has been updated. Please log in." if notice == "password_reset"
+                else None
+            ),
         },
     )
 
@@ -1023,6 +1028,216 @@ async def auth_resend_otp(request: Request) -> HTMLResponse:
             "notice": "A new code has been sent.",
             "resend_wait": otp_service.RESEND_COOLDOWN_SECONDS,
         },
+    )
+
+
+# ==================== FORGOT PASSWORD ====================
+
+
+@router.get("/auth/forgot-password", response_class=HTMLResponse)
+def forgot_password_form(request: Request, next: str = "/") -> HTMLResponse:
+    """GET /auth/forgot-password : the email entry step of password recovery."""
+    safe_next = _safe_next_path(next)
+    otp_service.clear_reset_session(request.session)
+    return templates.TemplateResponse(
+        request,
+        "forgot_password.html",
+        {"user": None, "next": safe_next, "error": None},
+    )
+
+
+@router.post("/auth/forgot-password", response_class=HTMLResponse)
+async def forgot_password_submit(request: Request) -> HTMLResponse:
+    """POST /auth/forgot-password : sends a reset OTP to the given email."""
+    form = await request.form()
+    email = str(form.get("email") or "").strip().lower()
+    safe_next = _safe_next_path(str(form.get("next") or "/"))
+
+    def render_error(message: str) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "forgot_password.html",
+            {"user": None, "next": safe_next, "error": message},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not email:
+        return render_error("Please enter your email address.")
+
+    check_client = get_request_supabase_client(request)
+    user_id = db_service.fetch_user_id_by_email(check_client, email)
+    if not user_id:
+        return render_error("No account was found with that email address.")
+
+    otp = otp_service.generate_otp()
+    try:
+        otp_service.send_otp_email(email, otp)
+    except Exception as error:  # noqa: BLE001
+        return render_error(f"Failed to send verification email: {error}")
+
+    otp_service.store_reset_otp(request.session, email, otp)
+
+    allowed, wait = otp_service.can_resend_reset(request.session)
+    return templates.TemplateResponse(
+        request,
+        "reset_password_otp.html",
+        {
+            "user": None,
+            "email": email,
+            "next": safe_next,
+            "error": None,
+            "resend_wait": wait if not allowed else 0,
+        },
+    )
+
+
+@router.post("/auth/verify-reset-otp", response_class=HTMLResponse)
+async def verify_reset_otp(request: Request) -> HTMLResponse:
+    """POST /auth/verify-reset-otp : checks the code entered on the reset OTP step."""
+    form = await request.form()
+    entered_otp = str(form.get("otp") or "").strip()
+    safe_next = _safe_next_path(str(form.get("next") or "/"))
+    email = request.session.get("reset_email")
+
+    def render_otp_error(message: str) -> HTMLResponse:
+        allowed, wait = otp_service.can_resend_reset(request.session)
+        return templates.TemplateResponse(
+            request,
+            "reset_password_otp.html",
+            {
+                "user": None,
+                "email": email,
+                "next": safe_next,
+                "error": message,
+                "resend_wait": wait if not allowed else 0,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not email:
+        return RedirectResponse(
+            url=f"/auth/forgot-password?next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    ok, reason = otp_service.verify_reset_otp(request.session, entered_otp)
+    if not ok:
+        if reason == "expired":
+            return render_otp_error("OTP has expired. Please request a new code.")
+        return render_otp_error("Invalid verification code. Please try again.")
+
+    request.session["reset_verified"] = True
+    return RedirectResponse(
+        url=f"/auth/reset-password?next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+@router.post("/auth/resend-reset-otp", response_class=HTMLResponse)
+async def resend_reset_otp(request: Request) -> HTMLResponse:
+    """POST /auth/resend-reset-otp : re-sends a new code during the reset OTP step."""
+    form = await request.form()
+    safe_next = _safe_next_path(str(form.get("next") or "/"))
+    email = request.session.get("reset_email")
+
+    if not email:
+        return RedirectResponse(
+            url=f"/auth/forgot-password?next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    allowed, wait = otp_service.can_resend_reset(request.session)
+    if not allowed:
+        return templates.TemplateResponse(
+            request,
+            "reset_password_otp.html",
+            {"user": None, "email": email, "next": safe_next, "error": None, "resend_wait": wait},
+        )
+
+    otp = otp_service.generate_otp()
+    try:
+        otp_service.send_otp_email(email, otp)
+    except Exception as error:  # noqa: BLE001
+        return templates.TemplateResponse(
+            request,
+            "reset_password_otp.html",
+            {
+                "user": None,
+                "email": email,
+                "next": safe_next,
+                "error": f"Failed to send verification email: {error}",
+                "resend_wait": 0,
+            },
+        )
+
+    otp_service.store_reset_otp(request.session, email, otp)
+    return templates.TemplateResponse(
+        request,
+        "reset_password_otp.html",
+        {
+            "user": None,
+            "email": email,
+            "next": safe_next,
+            "error": None,
+            "notice": "A new code has been sent.",
+            "resend_wait": otp_service.RESEND_COOLDOWN_SECONDS,
+        },
+    )
+
+
+@router.get("/auth/reset-password", response_class=HTMLResponse)
+def reset_password_form(request: Request, next: str = "/") -> HTMLResponse:
+    """GET /auth/reset-password : the new password step, only reachable after OTP verification."""
+    safe_next = _safe_next_path(next)
+    if not request.session.get("reset_verified") or not request.session.get("reset_email"):
+        return RedirectResponse(
+            url=f"/auth/forgot-password?next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
+    return templates.TemplateResponse(
+        request,
+        "reset_password.html",
+        {"user": None, "next": safe_next, "error": None},
+    )
+
+
+@router.post("/auth/reset-password", response_class=HTMLResponse)
+async def reset_password_submit(request: Request) -> HTMLResponse:
+    """POST /auth/reset-password : sets the new password after OTP verification."""
+    form = await request.form()
+    password = str(form.get("password") or "")
+    confirm_password = str(form.get("confirm_password") or "")
+    safe_next = _safe_next_path(str(form.get("next") or "/"))
+    email = request.session.get("reset_email")
+
+    def render_error(message: str) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "reset_password.html",
+            {"user": None, "next": safe_next, "error": message},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not request.session.get("reset_verified") or not email:
+        return RedirectResponse(
+            url=f"/auth/forgot-password?next={safe_next}", status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    if len(password) < 6:
+        return render_error("Password must be at least 6 characters")
+    if password != confirm_password:
+        return render_error("Passwords do not match")
+
+    check_client = get_request_supabase_client(request)
+    user_id = db_service.fetch_user_id_by_email(check_client, email)
+    if not user_id:
+        return render_error("No account was found with that email address.")
+
+    try:
+        database.admin_update_user_password(user_id, password)
+    except Exception as error:  # noqa: BLE001
+        return render_error(f"Failed to update password: {error}")
+
+    otp_service.clear_reset_session(request.session)
+    return RedirectResponse(
+        url=f"/auth?mode=login&next={safe_next}&notice=password_reset",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 

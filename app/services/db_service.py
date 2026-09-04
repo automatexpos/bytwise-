@@ -151,6 +151,17 @@ def is_email_or_username_taken(supabase: Client, email: str, username: str) -> b
         return False
 
 
+def fetch_user_id_by_email(supabase: Client, email: str) -> Optional[str]:
+    """Looks up a profile's user id by email, for the forgot-password flow."""
+    try:
+        response = supabase.table("profiles").select("id").eq("email", email).limit(1).execute()
+        rows = response.data or []
+        return rows[0]["id"] if rows else None
+    except Exception as error:  # noqa: BLE001
+        print(f"Error looking up user id by email: {error}")
+        return None
+
+
 def fetch_user_profile(supabase: Client, user_id: str) -> Optional[dict[str, Any]]:
     """
     Fetches a user's profile row plus saved shops, visited shops, and

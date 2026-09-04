@@ -105,3 +105,55 @@ def clear_signup_session(session: dict) -> None:
         "signup_otp_expires_at",
     ):
         session.pop(key, None)
+
+
+def store_reset_otp(session: dict, email: str, otp: str) -> None:
+    """Stores a forgot-password OTP and its sent/expiry timestamps in the session."""
+    now = time.time()
+    session["reset_email"] = email
+    session["reset_otp"] = otp
+    session["reset_otp_sent_at"] = now
+    session["reset_otp_expires_at"] = now + OTP_EXPIRY_SECONDS
+    session.pop("reset_verified", None)
+
+
+def can_resend_reset(session: dict) -> tuple[bool, int]:
+    """Returns (allowed, seconds_to_wait) based on the resend cooldown, for the reset flow."""
+    sent_at = session.get("reset_otp_sent_at")
+    if not sent_at:
+        return True, 0
+    elapsed = time.time() - sent_at
+    if elapsed >= RESEND_COOLDOWN_SECONDS:
+        return True, 0
+    return False, int(RESEND_COOLDOWN_SECONDS - elapsed)
+
+
+def verify_reset_otp(session: dict, entered_otp: str) -> tuple[bool, Optional[str]]:
+    """Checks entered_otp against the session's stored forgot-password OTP and expiry.
+
+    Returns (True, None) on success, otherwise (False, reason) where
+    reason is "missing", "expired", or "mismatch".
+    """
+    stored_otp = session.get("reset_otp")
+    expires_at = session.get("reset_otp_expires_at")
+
+    if not stored_otp or not expires_at:
+        return False, "missing"
+    if time.time() >= expires_at:
+        return False, "expired"
+    if entered_otp != stored_otp:
+        return False, "mismatch"
+    return True, None
+
+
+def clear_reset_session(session: dict) -> None:
+    """Removes all forgot-password/OTP keys from the session after success or cancel."""
+    for key in (
+        "reset_email",
+        "reset_otp",
+        "reset_otp_sent_at",
+        "reset_otp_expires_at",
+        "reset_verified",
+    ):
+        session.pop(key, None)
+
